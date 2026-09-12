@@ -1,10 +1,13 @@
-# Instalação no WSL2
+# Install on WSL2
 
-Use Ubuntu 24.04 ou outra distribuição com Python 3.11+, Git, `gh`, Codex CLI e systemd.
-Clone em um diretório Linux, como `~/projects/AI_AGENT_OS`, para manter o banco e os serviços
-no filesystem Linux. O agente usa seu login atual do Codex.
+Use Ubuntu 24.04 or another distribution with Python 3.11+, Git, `gh`, Codex CLI and systemd.
+Clone into a Linux directory such as `~/projects/AI_AGENT_OS` to keep the database and services
+on the Linux filesystem. The agent uses the existing Codex sign-in for the Linux user.
 
-## Preparação
+This guide installs the selected repository. To create a separate GitHub project such as
+`AI_AGENT_OS_1`, follow [REUSE.md](REUSE.md) first and install from that project's folder.
+
+## Prerequisites
 
 ```bash
 sudo apt-get update
@@ -16,32 +19,32 @@ gh auth setup-git
 codex login
 ```
 
-Se Node/npm já estiverem instalados e funcionando, preserve essa instalação. Caso o pacote atual
-do Codex exija Node mais novo que o fornecido pela distribuição, instale uma versão compatível
-usando a documentação oficial. Não substitua uma instalação funcional sem necessidade.
-Os logins interativos são necessários apenas se não houver autenticação válida. Não coloque
-tokens em comandos do histórico, em arquivos versionados ou em mensagens do GitHub.
+Preserve an existing working Node/npm installation. If the current Codex package requires a
+newer Node version than the distribution provides, use the official installation instructions
+to install a compatible version. Interactive sign-in is required only when authentication is
+missing or expired. Keep tokens out of shell history, versioned files and GitHub messages.
 
-Verifique systemd:
+Check systemd:
 
 ```bash
 ps -p 1 -o comm=
 ```
 
-Se não retornar `systemd`, adicione ou ajuste a seção abaixo em `/etc/wsl.conf`, preservando
-as outras configurações existentes:
+If it does not return `systemd`, add or update this section in `/etc/wsl.conf`, preserving
+other existing settings:
 
 ```ini
 [boot]
 systemd=true
 ```
 
-Depois reinicie essa distribuição pelo Windows. Prefira `wsl --terminate NOME_DA_DISTRO` para
-não interromper outras distribuições. A sessão Codex dentro dela também será encerrada; retome
-a instalação após abrir o WSL novamente. O mecanismo é documentado pela
-[Microsoft](https://learn.microsoft.com/en-us/windows/wsl/systemd).
+Restart that distribution from Windows. Prefer `wsl --terminate DISTRO_NAME` to avoid stopping
+other distributions. This also ends a Codex session inside it; resume installation after
+reopening WSL. See [Microsoft's systemd guide](https://learn.microsoft.com/en-us/windows/wsl/systemd).
 
-## Instalar a instância
+## Install the selected repository
+
+To install the base repository itself:
 
 ```bash
 mkdir -p ~/projects
@@ -51,40 +54,45 @@ cd AI_AGENT_OS
 bash scripts/install-wsl.sh 8765
 ```
 
-O instalador verifica autenticação e testes, configura sudo sem senha para o usuário Linux,
-cria a branch de trabalho, inicia os dois serviços e habilita linger. Ele precisa de acesso
-sudo inicial. Essa permissão completa é a solicitada para o agente administrar o WSL2.
+If the checkout already exists, use it instead of cloning it again. For an instance already
+created with `new_instance.py`, change into its directory and run the installer with its
+chosen port, for example `bash scripts/install-wsl.sh 8766`.
 
-O código de setup é idempotente para a mesma instância. Use porta e nome de pasta diferentes
-para cada instância. Os serviços capturam o PATH da instalação, incluindo o caminho do Codex.
-Se você mover o executável ou o repositório, reinstale os serviços.
+The installer checks authentication and tests, configures passwordless sudo for the Linux
+user, creates the working branch, starts two services and enables linger. It needs initial
+sudo access. This grants the full WSL2 administration requested for the agent.
 
-## Iniciar com o Windows e criar um atalho
+Installation is idempotent for the same instance. Give each instance a distinct folder name
+and free port. Services capture the installation PATH, including the Codex executable's path.
+Reinstall the services if the executable or repository is moved.
 
-Execute dentro do repositório no WSL:
+## Start with Windows and create a shortcut
+
+Run inside the installed base repository in WSL:
 
 ```bash
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w scripts/install-windows-startup.ps1)" -Distro "$WSL_DISTRO_NAME" -RepoPath "$PWD" -Instance "ai_agent_os"
 ```
 
-Isso cria um atalho na inicialização do seu usuário Windows, mantém a distribuição ativa e
-adiciona o atalho do dashboard à área de trabalho. A política de execução é ajustada somente
-para esse processo PowerShell. O Windows deve estar ligado, acordado e com o usuário conectado.
-O systemd sozinho [não mantém uma instância WSL viva](https://learn.microsoft.com/en-us/windows/wsl/systemd).
+Use the matching name, such as `ai_agent_os_1`, for a numbered instance. This creates a
+startup shortcut for the Windows user, keeps the distribution active and adds a desktop
+shortcut for the dashboard. The execution-policy setting applies only to that PowerShell
+process. Windows must be on, awake and signed in. Systemd services alone
+[do not keep WSL running](https://learn.microsoft.com/en-us/windows/wsl/systemd).
 
-## Abrir e acompanhar
+## Open and monitor
 
-Abra o atalho ou execute:
+Use the shortcut or run:
 
 ```bash
 python3 .agent-os/open.py
 ```
 
-O navegador abrirá `http://localhost:8765` com autenticação local. O acesso por localhost entre
-Windows e WSL é descrito pela [Microsoft](https://learn.microsoft.com/en-us/windows/wsl/networking).
-Se o encaminhamento estiver desabilitado na sua configuração WSL, corrija-o antes de declarar
-a instalação concluída. Não exponha o servidor em `0.0.0.0` como atalho para esse problema.
+The browser opens the configured localhost port with local authentication. Microsoft documents
+[Windows-to-WSL localhost access](https://learn.microsoft.com/en-us/windows/wsl/networking).
+If localhost forwarding is disabled, fix it before declaring installation complete. Keep the
+dashboard bound to loopback.
 
-A primeira tarefa prepara e testa a própria instância. O estado **Pronto** exige testes, execução
-real do Codex, revisão independente, serviços ativos e publicação confirmada no GitHub.
-Os detalhes desta máquina ficam em [ACCESS.md](ACCESS.md), gerado pelo instalador.
+The first goal prepares and tests the instance. **Ready** requires passing tests, actual Codex
+execution, independent review, active services and confirmed GitHub publishing. Machine-specific
+details are written in English to [ACCESS.md](ACCESS.md) by the installer.

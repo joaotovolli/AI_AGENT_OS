@@ -1,67 +1,73 @@
-# Prompt de implementação no WSL2
+# WSL2 implementation prompt
 
-Copie o texto abaixo para uma sessão Codex executada no seu WSL2, com acesso ao host.
+This prompt installs the **existing AI_AGENT_OS repository**. It does not create
+`AI_AGENT_OS_1` or another GitHub repository. For a separate numbered project, use the
+[new-instance prompt](NEW_INSTANCE_PROMPT.md) or follow [REUSE.md](REUSE.md) first.
+
+Copy the text below into a Codex session running on the target WSL2 host.
 
 ---
 
-Instale, valide e coloque em operação o projeto https://github.com/joaotovolli/AI_AGENT_OS.git
-no meu WSL2 Linux. Trabalhe até concluir a instalação e a validação real. Não termine apenas
-com um plano ou com comandos para eu executar se você puder executá-los.
+Install, validate and operate the existing repository
+https://github.com/joaotovolli/AI_AGENT_OS.git on my WSL2 Linux machine. Complete the actual
+installation and verification using the implementation already in the repository.
 
-Autorizo as mudanças necessárias no WSL2, instalação e configuração de dependências, serviços,
-sudo sem senha para meu usuário Linux e inicialização do WSL no login do Windows. Preserve
-projetos e configurações existentes que não precisem ser alterados. Não publique credenciais.
-Essa autorização não remove restrições reais das ferramentas, da conta ou do provedor.
+Use English for the interface, documentation, prompts, generated progress, evidence,
+GitHub updates and operating instructions, regardless of the language used in this conversation.
 
-1. Localize uma cópia existente desse repositório. Se não houver, clone em
-   ~/projects/AI_AGENT_OS. Confirme que origin corresponde ao repositório correto. Não recrie
-   o sistema do zero: leia AGENTS.md, README.md, docs/ARCHITECTURE.md, docs/INSTALL_WSL2.md,
-   docs/CODEX.md e docs/VALIDATION.md e continue a implementação existente.
+I authorise the necessary WSL2 changes, dependency installation and configuration, services,
+passwordless sudo for my Linux user, and WSL startup at Windows sign-in. Preserve unrelated
+projects and settings. Keep credentials private. This authorisation does not override real
+provider, account or tool restrictions.
 
-2. Inspecione WSL, systemd, Python, Git, GitHub CLI, Node/npm e Codex CLI. Instale ou ajuste
-   somente o necessário. Use a autenticação existente do GitHub e do Codex. Nunca imprima,
-   copie para o GitHub ou exponha auth.json, tokens ou arquivos .env. Se um login realmente
-   exigir minha interação, explique exatamente qual interação falta. Se systemd exigir
-   reiniciar a distribuição, prepare tudo que puder antes e deixe a continuação documentada.
+1. Locate the existing checkout or clone into ~/projects/AI_AGENT_OS. Verify the origin.
+   Read AGENTS.md, README.md, docs/ARCHITECTURE.md, docs/INSTALL_WSL2.md, docs/CODEX.md
+   and docs/VALIDATION.md. Continue from the existing implementation. This task uses the
+   base repository itself; creating another GitHub repository is a separate operation.
 
-3. Confirme com codex exec --help e uma execução real que o adapter aceita o modelo
-   gpt-5.6-luna com reasoning medium. Esse é o padrão obrigatório. Teste a saída JSONL,
-   o schema de resultado e o modo de acesso completo. Verifique o controle Fast conforme
-   a documentação atual e a disponibilidade da conta; se não for suportado, registre essa
-   limitação com clareza. Não troque de modelo silenciosamente e não altere meu config global
-   do Codex sem necessidade. Use o login Codex existente, sem criar uma dependência de API key.
+2. Inspect WSL, systemd, Python, Git, GitHub CLI, Node/npm and Codex CLI. Install or adjust
+   what is needed. Reuse valid GitHub and Codex authentication. Keep auth.json, tokens and
+   .env files out of logs, chat and GitHub. If sign-in genuinely requires my interaction,
+   identify the exact missing step. Prepare all possible work before a required WSL restart
+   and document how to resume afterwards.
 
-4. Execute a suíte de testes e corrija qualquer defeito real. Rode o instalador
-   bash scripts/install-wsl.sh 8765, escolhendo outra porta livre apenas se 8765 estiver
-   ocupada. Instale os atalhos Windows e o keep-alive usando scripts/install-windows-startup.ps1.
-   Confirme que os dois serviços ficam ativos sem um terminal aberto e que o atalho abre
-   o dashboard no navegador do Windows. Não declare o startup validado apenas por criar arquivos.
+3. Use codex exec --help and an actual run to verify the adapter with gpt-5.6-luna and
+   medium reasoning. This is the required default. Check JSONL output, the result schema
+   and full-access execution. Verify Fast behaviour against current CLI support and the
+   account's available tiers; record an actual limitation if unsupported. Preserve my
+   selected model and existing global configuration. Use the saved Codex sign-in without
+   adding a dependency on an OpenAI API key.
 
-5. Deixe o bootstrap automático trabalhar e acompanhe suas tentativas. Corrija problemas de
-   instalação e integração encontrados. Valide no navegador real, incluindo uma tela pequena:
-   autenticação, criação de goal, estado da fila, troca de modelo/reasoning/Fast, progresso,
-   pausa, retomada e cancelamento. Não remova testes nem reduza critérios para obter aprovação.
+4. Run the regression suite and fix defects. Execute bash scripts/install-wsl.sh 8765,
+   selecting another free port only if necessary. Install Windows shortcuts and keep-alive
+   using scripts/install-windows-startup.ps1. Verify that both services remain active
+   without an open terminal and the shortcut opens the Windows browser successfully.
 
-6. Depois do bootstrap, crie um goal de teste pequeno e verificável, por exemplo produzir
-   um arquivo de exemplo em workspace/smoke-test e um teste que confira seu conteúdo. Observe
-   execução real, revisão independente, commit, push e conclusão no dashboard. Teste a retomada
-   de um goal interrompido e o tratamento de falhas com os testes automatizados. Teste uma
-   manutenção antecipada pelo botão Executar agora e deixe o intervalo final em 3.600 segundos.
-   Preserve Luna Medium e Fast desligado ao terminar, salvo se eu instruir outra configuração.
+5. Follow the automatic bootstrap attempts and fix installation or integration problems.
+   Validate the actual browser workflow at desktop and narrow viewport sizes: authentication,
+   goal submission, queue state, model/reasoning/Fast settings, progress, pause, resume and
+   cancellation. Preserve the tests and acceptance criteria when repairing failures.
 
-7. Publique o código, as correções e as instruções no GitHub. Toda tentativa deve ter checkpoint
-   na branch da instância; mudanças aprovadas devem chegar à branch estável. Não faça force push.
-   Registre alterações fora do repositório com scripts e notas sem segredos em infra/. Atualize
-   docs/ACCESS.md, docs/VALIDATION.md e a evidência dos goals com os resultados reais desta máquina.
-   Verifique também a execução do CI no GitHub. Não coloque os logs brutos ou o banco local no Git.
+6. After bootstrap, create a small, verifiable sample goal, such as producing an example
+   file in workspace/smoke-test with a test that checks its content. Observe actual execution,
+   independent review, commit, push and dashboard completion. Verify interrupted-goal recovery
+   and failure handling with the regression suite. Trigger an early maintenance cycle using
+   Run now and leave the final interval at 3,600 seconds. Finish with Luna Medium and Fast off
+   unless I explicitly request different settings.
 
-8. Termine somente quando houver evidência de prontidão: dashboard acessível pelo Windows,
-   serviços persistentes, Codex autenticado no modelo solicitado, goal de teste concluído com
-   verificação, GitHub sincronizado e manutenção automática ativa. Deixe o agente rodando, pronto
-   para receber meu primeiro goal de projeto. Informe a URL, o nome do atalho, os links GitHub e
-   qualquer limitação real restante. Não afirme que o sistema ficou perfeito ou sem possibilidade
-   de falhas. Se a franquia acabar, preserve e publique o progresso possível, informe o bloqueio
-   e mantenha o agendamento de retomada; não tente contornar limites.
+7. Publish code, fixes and instructions to this repository. Every attempt needs a checkpoint
+   on the instance working branch; tested changes advance the stable branch. Preserve remote
+   history without force pushes. Record external host changes through reproducible scripts
+   and sanitised notes in infra/. Update docs/ACCESS.md, docs/VALIDATION.md and goal evidence
+   with actual results from this machine. Verify CI on GitHub. Keep raw logs and the local
+   database out of Git.
 
-O projeto deve continuar reutilizável em AI_AGENT_OS_1, AI_AGENT_OS_2 e outros repositórios.
-Preserve o script scripts/new_instance.py e a separação de portas, estado e serviços por instância.
+8. Finish with evidence of readiness: dashboard accessible from Windows, persistent services,
+   authenticated Codex using the requested model, a verified sample goal, confirmed GitHub sync
+   and automatic maintenance. Leave the agent running for my first project goal. Report the
+   URL, shortcut, GitHub links and any real remaining limitation. State uncertainty accurately.
+   If quota is exhausted, preserve and publish the available progress, report the blockage and
+   retain scheduled retries. Do not bypass limits.
+
+Keep the project reusable as AI_AGENT_OS_1, AI_AGENT_OS_2 and other independent repositories.
+Preserve scripts/new_instance.py and per-instance ports, state and services.

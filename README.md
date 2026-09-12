@@ -9,13 +9,14 @@ must still complete authenticated WSL2 commissioning. The system never claims to
 
 ## Start here
 
-1. Give Codex the [WSL2 installation prompt](docs/IMPLEMENTATION_PROMPT.md).
+1. To run the existing base, give Codex the [WSL2 installation prompt](docs/IMPLEMENTATION_PROMPT.md).
+   To create a separate project, use the [AI_AGENT_OS_1 prompt](docs/NEW_INSTANCE_PROMPT.md) instead.
 2. Follow the generated [dashboard access instructions](docs/ACCESS.md).
 3. Let the automatic bootstrap goal pass its readiness checks.
 4. Add your first [goal](docs/GOALS.md). Goals submitted during bootstrap wait in the queue.
 
 The default dashboard address is **http://localhost:8765** after installation. The Windows
-shortcut opens it with local authentication. The dashboard has a Portuguese interface.
+shortcut opens it with local authentication. The interface, documentation, prompts and generated operating instructions are in English.
 
 ## Behavior
 

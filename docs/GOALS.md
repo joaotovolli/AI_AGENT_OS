@@ -1,36 +1,37 @@
-# Definir e acompanhar goals
+# Define and monitor goals
 
-No dashboard, preencha o título, o resultado desejado e os critérios de conclusão. Você pode
-adicionar comandos de verificação, um por linha. Eles são comandos reais de Bash executados
-no diretório do repositório, com as permissões da instância.
+In the dashboard, enter a title, the desired outcome and the acceptance criteria. You can
+also add verification commands, one per line. These are real Bash commands executed from
+the repository directory with the instance's permissions.
 
-Exemplo:
+Example:
 
-| Campo | Conteúdo |
+| Field | Content |
 | --- | --- |
-| Título | Criar um organizador local de documentos |
-| Resultado | Construir uma interface para classificar documentos de uma pasta de teste, com pré-visualização antes de mover os arquivos. |
-| Critérios | Arquivos de teste são classificados corretamente; nomes repetidos não sobrescrevem arquivos; a interface mostra o resultado; as instruções de acesso estão no GitHub. |
-| Comando opcional | `python3 -m unittest discover -s workspace/tests -v` |
+| Title | Build a local document organiser |
+| Outcome | Build an interface to classify documents in a test folder, with a preview before moving files. |
+| Acceptance criteria | Files are classified correctly; duplicate names never overwrite files; the interface shows the result; access instructions are in GitHub. |
+| Optional command | `python3 -m unittest discover -s workspace/tests -v` |
 
-Sem comandos específicos, a suíte do controlador continua obrigatória e uma sessão separada
-do Codex precisa verificar os critérios e a evidência do projeto. Critérios vagos tornam essa
-verificação menos forte. Para trabalhos verificáveis por código, forneça testes de aceitação.
+Without goal-specific commands, the controller's regression suite remains mandatory and a
+separate Codex session must verify the project's criteria and evidence. Vague criteria weaken
+this verification. Provide acceptance tests for outcomes that can be checked in code.
 
-Goals adicionados durante bootstrap ficam na fila. Depois, o primeiro goal de usuário pendente
-mantém prioridade até terminar ou ser cancelado, inclusive quando estiver aguardando quota.
-Novos goals não interrompem uma tentativa já em andamento. O botão **Pausar** interrompe a
-execução e preserva o trabalho; **Retomar** continua. **Executar agora** antecipa uma nova
-tentativa ou o próximo ciclo de manutenção, sem ignorar uma pausa ativa.
+Goals submitted during bootstrap remain queued. Afterwards, the first pending user goal
+retains priority until it completes or is cancelled, including while it waits for quota.
+New goals do not interrupt an attempt already in progress. **Pause** interrupts execution and
+preserves the work; **Resume** continues. **Run now** brings forward the next attempt or
+maintenance cycle without overriding an active pause.
 
-O agente mantém tentativas sem limite de quantidade. Cada tentativa tem timeout, grava o que
-aprendeu e pode alterar a estratégia seguinte. Falhas de autenticação, modelo, quota ou rede
-aparecem no dashboard e geram novas tentativas com espera crescente.
+There is no maximum attempt count. Each attempt has a timeout, records what was learned and
+can change the next strategy. Authentication, model, quota and network failures appear in
+the dashboard and trigger further attempts with increasing backoff.
 
-Uma indicação de 100% enviada pelo agente é limitada a 99% até a verificação final. Só o
-controlador marca conclusão, após testes, revisão independente e GitHub. Não existe promessa
-de que todo goal é possível ou de que a avaliação da IA é infalível.
+A claim of 100% from the working agent is capped at 99% until final verification. Only the
+controller marks completion, after checks, independent review and GitHub publication. Not every
+goal is achievable, and the model's assessment can still be wrong.
 
-Os goals e resumos são publicados no repositório. Não coloque segredos na descrição. Para
-arquivo confidencial, indique seu caminho local e descreva apenas o necessário. Instruções
-de operação e resultados ficam em `docs/`; artefatos do projeto ficam em `workspace/`.
+Goals and summaries are published to the repository. Keep secrets out of descriptions. For a
+confidential file, reference its local path and describe only what is necessary. Operating
+instructions and evidence belong in `docs/`; project deliverables belong in `workspace/`.
+All generated progress, evidence, interface text and operating instructions must be in English.

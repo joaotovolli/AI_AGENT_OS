@@ -13,7 +13,7 @@ root = Path(sys.argv[1])
 state = State(root)
 state.ensure_bootstrap()
 state.update_goal("bootstrap", status="running", attempts=1, progress=45,
-                  summary="Validando serviços, persistência e acesso ao dashboard.")
+                  summary="Validating services, persistence and dashboard access.")
 state.set("worker_heartbeat", time.time())
 state.set("github", {"synced": True, "last_push": time.time(), "repository": "joaotovolli/AI_AGENT_OS"})
 server = make_server(root, port=0)

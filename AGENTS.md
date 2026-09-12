@@ -11,7 +11,9 @@ selectable Codex model/reasoning/Fast, persistent goal attempts, and hourly idle
 - Run `python3 -m unittest discover -s tests -v` after meaningful code changes.
 - Validate `bash -n scripts/install-wsl.sh` and `node --check agent_os/static/app.js` when relevant.
 - Update operating instructions and concrete verification evidence with behavior changes.
-- Keep the dashboard usable on desktop and mobile and preserve Portuguese UI text.
+- Keep the dashboard usable on desktop and mobile. Use English for all interface text,
+  documentation, prompts, code comments, generated progress, evidence and operating instructions.
+  The language used in conversation does not change the project language.
 - Never mark a goal complete without acceptance evidence, deterministic checks, an independent
   review, and a confirmed GitHub checkpoint. Do not weaken tests or criteria to manufacture success.
 - If an approach fails, preserve what was learned and change the approach. The scheduler retries

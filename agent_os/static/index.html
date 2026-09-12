@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>AI Agent OS</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
@@ -7,56 +7,56 @@
 <body>
 <div id="unlock" class="unlock">
   <form id="unlock-form" class="panel unlock-card">
-    <div class="brand-mark">AO</div><p class="eyebrow">SEU AMBIENTE DE EXECUÇÃO</p><h1>AI Agent OS</h1>
-    <p>Um lugar para definir objetivos, acompanhar o trabalho e controlar o Codex.</p>
-    <label for="access-token">Token de acesso local</label><input id="access-token" type="password" autocomplete="current-password" required>
-    <button class="primary" type="submit">Abrir dashboard</button>
-    <p class="muted">Use o atalho criado na instalação para abrir com acesso automático.</p>
+    <div class="brand-mark">AO</div><p class="eyebrow">YOUR EXECUTION ENVIRONMENT</p><h1>AI Agent OS</h1>
+    <p>Define goals, follow the work and control Codex in one place.</p>
+    <label for="access-token">Local access token</label><input id="access-token" type="password" autocomplete="current-password" required>
+    <button class="primary" type="submit">Open dashboard</button>
+    <p class="muted">Use the installed shortcut to open the dashboard with automatic access.</p>
     <p id="unlock-error" role="alert"></p>
   </form>
 </div>
 <div id="app" hidden>
   <aside>
-    <a class="brand" href="/"><span class="brand-mark">AO</span><span>AI Agent OS<small id="instance">Instância local</small></span></a>
-    <nav><a href="#overview" class="selected">Visão geral</a><a href="#new-goal">Novo goal</a><a href="#settings">Modelo e execução</a><a href="#activity">Atividade</a></nav>
-    <div class="sidebar-footer"><span class="dot"></span> WSL2 · Full access<p id="release" class="muted"></p><button id="lock" class="quiet">Bloquear acesso</button></div>
+    <a class="brand" href="/"><span class="brand-mark">AO</span><span>AI Agent OS<small id="instance">Local instance</small></span></a>
+    <nav><a href="#overview" class="selected">Overview</a><a href="#new-goal">New goal</a><a href="#settings">Model and execution</a><a href="#activity">Activity</a></nav>
+    <div class="sidebar-footer"><span class="dot"></span> WSL2 · Full access<p id="release" class="muted"></p><button id="lock" class="quiet">Lock dashboard</button></div>
   </aside>
   <main id="overview">
-    <header><div><p class="eyebrow">SEU AGENTE, EM OPERAÇÃO</p><h1>Objetivos em movimento.</h1><p class="subtitle">Defina o resultado. Acompanhe cada tentativa e a evidência de conclusão.</p></div><a id="github-link" class="button secondary" target="_blank" rel="noopener noreferrer" hidden>Ver no GitHub ↗</a></header>
+    <header><div><p class="eyebrow">YOUR AGENT AT WORK</p><h1>Goals in motion.</h1><p class="subtitle">Define the outcome. Follow each attempt and the evidence of completion.</p></div><a id="github-link" class="button secondary" target="_blank" rel="noopener noreferrer" hidden>View on GitHub ↗</a></header>
     <div id="notice" role="status" hidden></div>
-    <section class="metrics" aria-label="Estado da instância">
-      <article class="panel metric"><span>ESTADO</span><strong id="readiness">Conectando</strong><small id="worker-status">Verificando serviço</small></article>
-      <article class="panel metric"><span>MODELO ATIVO</span><strong id="current-model">Luna</strong><small id="current-reasoning">Medium</small></article>
-      <article class="panel metric"><span>GOALS CONCLUÍDOS</span><strong id="goal-count">0 / 0</strong><small id="next-wake">Manutenção a cada hora</small></article>
-      <article class="panel metric"><span>GITHUB</span><strong id="sync-status">Aguardando</strong><small id="sync-time">Primeiro checkpoint pendente</small></article>
+    <section class="metrics" aria-label="Instance status">
+      <article class="panel metric"><span>STATUS</span><strong id="readiness">Connecting</strong><small id="worker-status">Checking service</small></article>
+      <article class="panel metric"><span>ACTIVE MODEL</span><strong id="current-model">Luna</strong><small id="current-reasoning">Medium</small></article>
+      <article class="panel metric"><span>COMPLETED GOALS</span><strong id="goal-count">0 / 0</strong><small id="next-wake">Hourly maintenance</small></article>
+      <article class="panel metric"><span>GITHUB</span><strong id="sync-status">Waiting</strong><small id="sync-time">First checkpoint pending</small></article>
     </section>
     <section class="panel goal-panel">
-      <div class="section-head"><div><p class="eyebrow">FILA DE TRABALHO</p><h2>Goals</h2></div><div class="actions"><button id="wake" class="secondary">Executar agora</button><button id="pause" class="secondary">Pausar</button><a href="#new-goal" class="button primary">+ Novo goal</a></div></div>
+      <div class="section-head"><div><p class="eyebrow">WORK QUEUE</p><h2>Goals</h2></div><div class="actions"><button id="wake" class="secondary">Run now</button><button id="pause" class="secondary">Pause</button><a href="#new-goal" class="button primary">+ New goal</a></div></div>
       <div id="goals" aria-live="polite"></div>
     </section>
     <div class="columns">
-      <section class="panel" id="new-goal"><p class="eyebrow">PRÓXIMO OBJETIVO</p><h2>O que vamos construir?</h2>
+      <section class="panel" id="new-goal"><p class="eyebrow">NEXT OBJECTIVE</p><h2>What shall we build?</h2>
         <form id="goal-form">
-          <label for="goal-title">Título</label><input id="goal-title" maxlength="200" placeholder="Ex.: Automatizar meu relatório semanal" required>
-          <label for="goal-description">Resultado desejado</label><textarea id="goal-description" rows="4" maxlength="20000" placeholder="Descreva o objetivo, o contexto e as restrições." required></textarea>
-          <label for="goal-acceptance">Como saberemos que terminou?</label><textarea id="goal-acceptance" rows="3" maxlength="10000" placeholder="Critérios concretos que precisam ser comprovados." required></textarea>
-          <details><summary>Comandos de verificação opcionais</summary><p class="muted">Um comando por linha. Serão executados no WSL2 para verificar o resultado.</p><textarea id="goal-commands" rows="3" placeholder="python3 -m unittest discover -s workspace/tests"></textarea></details>
-          <button type="submit" class="primary">Adicionar à fila</button><p class="muted">Durante a preparação inicial, novos goals aguardam a validação do sistema.</p>
+          <label for="goal-title">Title</label><input id="goal-title" maxlength="200" placeholder="Example: Automate my weekly report" required>
+          <label for="goal-description">Desired outcome</label><textarea id="goal-description" rows="4" maxlength="20000" placeholder="Describe the goal, context and constraints." required></textarea>
+          <label for="goal-acceptance">How will we know it is done?</label><textarea id="goal-acceptance" rows="3" maxlength="10000" placeholder="Specific criteria that must be verified." required></textarea>
+          <details><summary>Optional verification commands</summary><p class="muted">One command per line. These run in WSL2 to verify the outcome.</p><textarea id="goal-commands" rows="3" placeholder="python3 -m unittest discover -s workspace/tests"></textarea></details>
+          <button type="submit" class="primary">Add to queue</button><p class="muted">During initial setup, new goals wait for the system to pass validation.</p>
         </form>
       </section>
-      <section class="panel" id="settings"><p class="eyebrow">CODEX EXEC</p><h2>Modelo e execução</h2>
+      <section class="panel" id="settings"><p class="eyebrow">CODEX EXEC</p><h2>Model and execution</h2>
         <form id="settings-form">
-          <label for="model">Modelo</label><input id="model" list="model-options" required><datalist id="model-options"><option value="gpt-5.6-luna"><option value="gpt-5.6-terra"><option value="gpt-5.6-sol"><option value="gpt-6-astra"><option value="gpt-5.5"></datalist>
-          <p class="muted">Escolha ou digite qualquer ID aceito pelo seu Codex.</p>
+          <label for="model">Model</label><input id="model" list="model-options" required><datalist id="model-options"><option value="gpt-5.6-luna"><option value="gpt-5.6-terra"><option value="gpt-5.6-sol"><option value="gpt-6-astra"><option value="gpt-5.5"></datalist>
+          <p class="muted">Choose or enter any model ID supported by your Codex.</p>
           <label for="reasoning">Reasoning</label><input id="reasoning" list="reasoning-options" required><datalist id="reasoning-options"><option value="minimal"><option value="low"><option value="medium"><option value="high"><option value="xhigh"><option value="max"></datalist>
-          <label class="switch-row" for="fast"><span><strong>Fast</strong><small>Usa o tier Fast quando disponível na sua conta e modelo.</small></span><input type="checkbox" id="fast" role="switch"></label>
-          <button class="primary" type="submit">Salvar configuração</button><p class="muted">Aplica na próxima tentativa. A execução atual mantém sua configuração.</p>
+          <label class="switch-row" for="fast"><span><strong>Fast</strong><small>Uses the Fast tier when available for your account and model.</small></span><input type="checkbox" id="fast" role="switch"></label>
+          <button class="primary" type="submit">Save settings</button><p class="muted">Applies to the next attempt. The current run keeps its settings.</p>
         </form>
-        <div class="usage"><span>Tokens registrados nesta instância</span><strong id="usage">0</strong><small>Uso informado pelo CLI. A franquia restante da conta não é conhecida.</small></div>
+        <div class="usage"><span>Tokens recorded for this instance</span><strong id="usage">0</strong><small>Usage reported by the CLI. The remaining account allowance is unknown.</small></div>
       </section>
     </div>
-    <section class="panel" id="activity"><div class="section-head"><div><p class="eyebrow">HISTÓRICO RECENTE</p><h2>Atividade e verificações</h2></div><span class="muted">Atualização a cada 3 segundos</span></div><div id="checks" class="checks"></div><div id="events"></div></section>
-    <footer>Autonomia com histórico. Conclusão com evidência.<span id="last-refresh"></span></footer>
+    <section class="panel" id="activity"><div class="section-head"><div><p class="eyebrow">RECENT HISTORY</p><h2>Activity and checks</h2></div><span class="muted">Updates every 3 seconds</span></div><div id="checks" class="checks"></div><div id="events"></div></section>
+    <footer>Autonomy with a record. Completion with evidence.<span id="last-refresh"></span></footer>
   </main>
 </div>
 </body></html>
