@@ -38,3 +38,30 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Check tracked content for credentials and runtime files
         run: python scripts/check_repository.py
+
+  browser:
+    name: Dashboard browser workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/agent-os-browser" playwright@1.62.1
+          "$RUNNER_TEMP/agent-os-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Exercise dashboard in Chromium
+        run: NODE_PATH="$RUNNER_TEMP/agent-os-browser/node_modules" node tests/browser_smoke.cjs
+      - name: Save browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-browser-evidence
+          path: browser-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14

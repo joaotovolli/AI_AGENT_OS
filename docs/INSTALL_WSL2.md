@@ -9,7 +9,8 @@ no filesystem Linux. O agente usa seu login atual do Codex.
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3 git gh nodejs npm
-npm install -g @openai/codex
+npm install -g --prefix "$HOME/.local" @openai/codex
+export PATH="$HOME/.local/bin:$PATH"
 gh auth login
 gh auth setup-git
 codex login
