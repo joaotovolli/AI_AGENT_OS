@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'agent/**']
+    paths-ignore: ['STATUS.md', 'state/**', 'docs/**']
+  pull_request:
+    paths-ignore: ['STATUS.md', 'state/**', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Validate Python, shell and browser JavaScript
+        run: |
+          python -m compileall -q agent_os scripts tests
+          bash -n scripts/install-wsl.sh
+          node --check agent_os/static/app.js
+      - name: Run regression and integration tests
+        run: python -m unittest discover -s tests -v
+      - name: Check tracked content for credentials and runtime files
+        run: python scripts/check_repository.py

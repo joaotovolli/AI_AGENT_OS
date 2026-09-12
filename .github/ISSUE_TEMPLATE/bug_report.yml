@@ -1,0 +1,21 @@
+name: Reliability or usability issue
+description: Report a reproducible problem with AI Agent OS.
+title: '[Bug] '
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and reproduction steps
+      description: Include version, model and sanitized error details. Never include tokens or raw authentication logs.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How the fix can be verified
