@@ -32,6 +32,18 @@ The initial tests use a fake Codex executable and mocked GitHub HTTP calls where
 They verify controller behavior; they do not prove that the owner's installed Codex version,
 account, model access, Fast entitlement, Linux services or Windows integration work.
 
+## English project baseline
+
+On 2026-09-12, the interface, documentation, installation prompts and test examples were
+converted to English. Working and review prompts now require English reports and evidence.
+The installation guides distinguish installing the existing base from explicitly creating
+a separate private repository such as `AI_AGENT_OS_1`.
+
+All 36 local tests and the compilation, syntax and tracked-content checks passed. GitHub
+Actions also passed on Python 3.11, 3.12 and 3.13 and in the Chromium desktop/mobile workflow:
+[passing run](https://github.com/joaotovolli/AI_AGENT_OS/actions/runs/34710641713), tested
+commit `76999c3fcd9e7a4fc8e48d077f2feee55095a6be`. Actual WSL2 commissioning remains pending.
+
 ## Required WSL2 commissioning
 
 These checks remain pending until the installation prompt is executed on the target host:
