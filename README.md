@@ -64,3 +64,7 @@ Codex CLI. The dashboard itself is served as static HTML, CSS and JavaScript.
 
 Read the [architecture](docs/ARCHITECTURE.md), [validation record](docs/VALIDATION.md),
 [Codex settings](docs/CODEX.md), and [reusable instance guide](docs/REUSE.md).
+
+The [initial CI run](https://github.com/joaotovolli/AI_AGENT_OS/actions/runs/34696972138) passed
+36 tests on Python 3.11/3.12/3.13 and a real Chromium dashboard workflow on desktop and mobile
+viewports. The browser job uses Playwright as a development-only dependency.
