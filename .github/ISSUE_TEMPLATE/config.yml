@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/joaotovolli/AI_AGENT_OS/blob/main/SECURITY.md
+    about: Review the private reporting guidance before sharing security-sensitive details.
+  - name: Support and usage guidance
+    url: https://github.com/joaotovolli/AI_AGENT_OS/blob/main/SUPPORT.md
+    about: Check documentation and support guidance before opening a new issue.

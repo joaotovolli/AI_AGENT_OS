@@ -1,0 +1,49 @@
+name: Feature proposal
+description: Propose an improvement to AI Agent OS.
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve AI Agent OS. Describe the problem and desired outcome; implementation details are optional.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+      description: What is difficult, missing, unreliable or unnecessarily complex today?
+      placeholder: Describe the user or operator problem rather than prescribing a solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What should become possible or easier after this improvement?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Add relevant workflow, environment or examples. Keep all information sanitized.
+    validations:
+      required: false
+
+  - type: textarea
+    id: considerations
+    attributes:
+      label: Constraints or considerations
+      description: Optional compatibility, security, usability or operational considerations.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Submission check
+      options:
+        - label: I have not included credentials, tokens, private logs or other sensitive material.
+          required: true
