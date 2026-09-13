@@ -117,16 +117,21 @@ def available_models():
     codex_dir = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
     try:
         data = json.loads((codex_dir / "models_cache.json").read_text())
-        models = data.get("models", [])
+        models = data.get("models", []) if isinstance(data, dict) else []
+        if not isinstance(models, list):
+            return []
         result = []
         for m in models:
             if not isinstance(m, dict) or not (m.get("slug") or m.get("id")):
                 continue
             levels = m.get("supported_reasoning_levels", m.get("supported_reasoning_efforts", []))
+            if not isinstance(levels, list):
+                levels = []
             upgrade = m.get("upgrade") or {}
             result.append({"id": m.get("slug", m.get("id")),
                            "name": m.get("display_name", m.get("slug", m.get("id"))),
-                           "reasoning": [v.get("effort") if isinstance(v, dict) else v for v in levels],
+                           "reasoning": [v.get("effort") if isinstance(v, dict) else v for v in levels
+                                         if isinstance(v, (dict, str))],
                            "default_reasoning": m.get("default_reasoning_level", "medium"),
                            "upgrade": upgrade.get("model") if isinstance(upgrade, dict) else None})
         return result

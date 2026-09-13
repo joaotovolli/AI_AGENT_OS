@@ -1,5 +1,6 @@
 """A bounded read-only diagnostic consultation, separate from the working model."""
 import json
+import hashlib
 import time
 import uuid
 
@@ -19,6 +20,8 @@ def stalled(entries, settings):
         if entry["kind"] != "attempt":
             continue
         data = entry["data"]
+        if data.get("model", settings["model"]) != settings["model"]:
+            break
         key = data.get("blocker_key")
         if data.get("progress_made") or data.get("blocker_kind") != "technical" or not key:
             break
@@ -65,11 +68,13 @@ def consult(worker, goal, settings):
     blocker = stalled(entries, settings)
     if not blocker:
         return
-    used = {(e["data"].get("model"), e["data"].get("reasoning")) for e in entries
+    interventions = worker.state.history(goal["id"], None, ("advisor_started", "advisor_advice"))
+    used = {(e["data"].get("model"), e["data"].get("reasoning")) for e in interventions
             if e["kind"] == "advisor_started" and e["data"].get("blocker_key") == blocker}
     choice = next((c for c in candidates(settings, config.available_models()) if (c["model"], c["reasoning"]) not in used), None)
     if not choice:
-        worker.state.note(goal["id"], f"advisor-unavailable:{goal['attempts']}:{blocker}", "advisor_unavailable",
+        preference = hashlib.sha256(json.dumps([settings["model"], settings["reasoning"], settings["diagnostic_models"]]).encode()).hexdigest()[:16]
+        worker.state.note(goal["id"], f"advisor-unavailable:{goal['id']}:{blocker}:{preference}", "advisor_unavailable",
                           {"blocker_key": blocker, "summary": "No untried, catalog-confirmed diagnostic preference is available. Configure an appropriate stronger model or inspect locally."})
         return
     run_id = "advisor-" + uuid.uuid4().hex
@@ -91,7 +96,7 @@ required JSON fields. Do not include raw transcripts, private data or reasoning 
         result = Codex(worker.root, advisor_settings, lambda *_: None, worker.heartbeat, cancel).run(prompt, run_id, readonly=True)
         worker.add_usage(result.get("usage", {}))
         advice = text(result.get("result", {}).get("next_action", ""))
-        previous = {e["data"].get("next_action") for e in entries if e["kind"] == "advisor_advice" and e["data"].get("blocker_key") == blocker}
+        previous = {e["data"].get("next_action") for e in interventions if e["kind"] == "advisor_advice" and e["data"].get("blocker_key") == blocker}
         if result.get("ok") and advice and advice not in previous and not cancel():
             worker.state.note(goal["id"], run_id + ":result", "advisor_advice", dict(choice, blocker_key=blocker,
                               summary=text(result["result"]["summary"]), next_action=advice))

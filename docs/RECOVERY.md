@@ -4,8 +4,8 @@
 
 Check pause status, the next attempt time and the displayed error. Exhausted quota triggers
 further attempts with backoff. If authentication expired, run `codex login` or `gh auth login`
-in WSL2, then choose **Run now**. If your account cannot access the model, change its ID in
-the dashboard. Models and credentials are never silently replaced.
+in WSL2, then choose **Retry goal** for a goal marked Needs input, or **Run now** for backoff. If your account cannot access the model, change its ID in
+the dashboard and retry the blocked goal. Models and credentials are never silently replaced.
 
 The service uses the PATH captured at installation. After moving Codex to another path, run
 `python3 scripts/install_services.py` again. Exact service names are in [ACCESS.md](ACCESS.md).
@@ -53,9 +53,19 @@ bash scripts/install-wsl.sh 8765
 
 Choose the instance's own port if different. Restore requires an empty local database and the
 same repository origin. Incomplete goals return to the queue; bootstrap validates the host
-again. The checkpoint does not contain raw logs, credentials or every historical database
-detail. For full local recovery, back up `.agent-os` with the services stopped so the SQLite
+again. Per-goal Git history and handled follow-up receipts are restored; pending comments
+are re-fetched subject to current authorization. The checkpoint does not contain raw messages,
+logs, credentials or every historical database detail. For full local recovery, back up `.agent-os` with the services stopped so the SQLite
 copy is consistent.
+
+## Framework update recovery
+
+Read [framework updates](FRAMEWORK_UPDATES.md) for paused integration and legacy adoption.
+A conflict or failed candidate test leaves local source and runtime intact. If a later GitHub
+promotion or activation step fails, keep the instance paused and inspect the reported commit
+before resuming. Retained runtimes keep their original configuration keys; new preferences are
+stored separately. A pre-0.2 runtime does not implement the new channel, advisor or blocked-goal
+semantics. Keep it paused until the compatible runtime is repaired and goal states are reviewed.
 
 ## Remove an installation
 

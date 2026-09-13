@@ -1,7 +1,7 @@
 """Discover upstream changes and validate three-way integration before activation."""
 import json
 import re
-import shutil
+import subprocess
 import tempfile
 import time
 import uuid
@@ -85,7 +85,6 @@ class Framework:
         if size > 5 * 1024 * 1024:
             raise RuntimeError("Framework file exceeds update size limit: " + path)
         # subprocess bytes preserve exact text; process.run decodes with replacement for diagnostics.
-        import subprocess
         content = subprocess.check_output(["git", "cat-file", "blob", sha], cwd=self.root)
         if b"\0" in content:
             raise RuntimeError("Binary framework changes need deliberate integration: " + path)
@@ -105,10 +104,12 @@ class Framework:
             files = [Path(temp) / name for name in ("local", "base", "incoming")]
             for file, value in zip(files, (local, base, incoming)):
                 file.write_text(value[1], encoding="utf-8")
-            merged = run(["git", "merge-file", "-p", *map(str, files)], self.root, timeout=30)
+            # This output is source, so never pass it through the bounded diagnostic log tail.
+            merged = subprocess.run(["git", "merge-file", "-p", *map(str, files)], cwd=self.root,
+                                    capture_output=True, timeout=30, encoding="utf-8")
             if merged.returncode:
                 raise RuntimeError("Framework content conflict: " + path)
-            return mode, merged.output
+            return mode, merged.stdout
 
     def clean(self):
         return not self.github.git("status", "--porcelain").output.strip()
@@ -159,7 +160,8 @@ class Framework:
         if not self.state.get("paused", False) or self.state.get("active_run"):
             raise RuntimeError("Pause the instance and wait for its active attempt to stop before applying")
         head, candidate, results = self.prepare(target)
-        if self.cancel() or not self.clean() or self.github.git("rev-parse", "HEAD").output.strip() != head:
+        if (self.cancel() or not self.state.get("paused", False) or self.state.get("active_run")
+                or not self.clean() or self.github.git("rev-parse", "HEAD").output.strip() != head):
             raise RuntimeError("Instance changed while preparing the update; candidate was not activated")
         _, branch = self.github.identity()
         self.github.git("fetch", "origin", branch)
@@ -189,6 +191,8 @@ class Framework:
         self.state.set("framework_request", None)  # Consume once, including interrupted apply requests.
         try:
             if request and request["action"] == "apply":
+                self.state.set("framework", {"status": "applying", "target_commit": request["commit"],
+                                              "message": "Preparing and validating a separate framework candidate."})
                 self.apply(request["commit"])
             else:
                 self.check()

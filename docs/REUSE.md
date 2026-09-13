@@ -50,8 +50,9 @@ numbers are conventions; every running instance needs a free port.
 
 The script copies files committed at the source checkout's `HEAD`, including the controller,
 dashboard, tests and documentation. Uncommitted changes are not copied. It removes the old goal
-checkpoint and evidence, resets the access/status pages and starts a new Git history. Ignored
-credentials, databases, raw logs and local runtime configuration are not copied.
+checkpoint, diagnostic history and evidence, resets the access/status pages and starts a new Git history. Ignored
+credentials, databases, raw logs and local runtime configuration are not copied. The tracked
+`.agent-os-base.json` records the inherited source commit for later framework updates.
 
 Use a clean base checkout for a generic instance. Creating one from a project repository also
 copies that project's committed files. Both the destination folder and the new repository name
@@ -59,9 +60,10 @@ must be unused. Every fresh instance performs its own bootstrap before working o
 
 ## Updates and shared host access
 
-Instances are independent copies, not linked forks with automatic updates. Base improvements
-do not automatically update existing instances, and instance improvements do not automatically
-update the base. Integrate selected changes deliberately and rerun validation.
+Instances are independent copies. They discover base improvements through provenance and a
+lightweight daily check, but do not automatically apply them or publish project changes upstream.
+The [framework update guide](FRAMEWORK_UPDATES.md) describes explicit validated integration,
+conflict handling and adoption for older instances. Workspace, state and local settings are preserved.
 
 Instances on the same WSL2 machine share the host and the Codex account allowance. Separate
 ports and databases prevent operational conflicts; they do not create security sandboxes.

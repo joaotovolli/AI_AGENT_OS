@@ -24,8 +24,15 @@ preserves the work; **Resume** continues. **Run now** brings forward the next at
 maintenance cycle without overriding an active pause.
 
 There is no maximum attempt count. Each attempt has a timeout, records what was learned and
-can change the next strategy. Authentication, model, quota and network failures appear in
-the dashboard and trigger further attempts with increasing backoff.
+can change the next strategy. Quota and network failures appear in the dashboard and retry
+with backoff. Missing authentication, model configuration or an operator decision can enter
+**Needs input**. Resolve the dependency locally and select **Retry goal**; pause remains respected.
+Later goals do not overtake a blocked goal. The [GitHub follow-up channel](OPERATORS.md), when
+enabled, can supply context without bypassing application approvals.
+
+Expand **Diagnostic history** to inspect phases, attempts, blockers and next actions. Earlier
+records persist in GitHub after completion or cancellation. The optional [diagnostic advisor](DIAGNOSTICS.md)
+can help with repeated technical blockers while leaving your selected worker model unchanged.
 
 A claim of 100% from the working agent is capped at 99% until final verification. Only the
 controller marks completion, after checks, independent review and GitHub publication. Not every
@@ -35,3 +42,6 @@ Goals and summaries are published to the repository. Keep secrets out of descrip
 confidential file, reference its local path and describe only what is necessary. Operating
 instructions and evidence belong in `docs/`; project deliverables belong in `workspace/`.
 All generated progress, evidence, interface text and operating instructions must be in English.
+
+For a distinct product, use the [project organization and access contract](PROJECTS.md). Its
+interface opens from the Projects panel, with its own service and authentication.

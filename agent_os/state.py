@@ -148,10 +148,11 @@ class State:
                        (goal_id, event_key, time.time() if at is None else at, attempt, text(kind, 60), json.dumps(clean)))
         self.set("needs_checkpoint", True)
 
-    def history(self, goal_id, limit=12):
+    def history(self, goal_id, limit=12, kinds=()):
+        clause = " AND kind IN (" + ",".join("?" for _ in kinds) + ")" if kinds else ""
         with self.db() as db:
-            rows = db.execute("SELECT * FROM history WHERE goal_id=? ORDER BY id DESC LIMIT ?",
-                              (goal_id, -1 if limit is None else limit)).fetchall()
+            rows = db.execute("SELECT * FROM history WHERE goal_id=?" + clause + " ORDER BY id DESC LIMIT ?",
+                              (goal_id, *kinds, -1 if limit is None else limit)).fetchall()
         return [dict(row, data=json.loads(row["data"])) for row in reversed(rows)]
 
     def dirty_histories(self):
@@ -194,6 +195,11 @@ class State:
     def pending_followups(self, goal_id):
         return any(f["status"] == "queued" and f["goal_id"] == goal_id for f in self.followups())
 
+    def cancel_followups(self, goal_id):
+        with self.db() as db:
+            db.execute("UPDATE followups SET status='handled',run_id=NULL,reply=? WHERE goal_id=? AND status!='handled'",
+                       ("The target goal was cancelled before this follow-up could be completed.", goal_id))
+
     def followup_receipts(self):
         keys = ("id", "repository", "issue", "comment", "goal_id", "status", "received")
         return [{k: item[k] for k in keys} for item in self.followups()]
@@ -229,6 +235,8 @@ class State:
         if count:
             self.event("worker.recovered", f"Recovered {count} interrupted goal(s); persisted attempts retained")
         self.set("active_run", None)
+        if self.get("framework", {}).get("status") == "applying":
+            self.set("framework", {"status": "attention", "message": "Framework update was interrupted. Inspect source and remote state before retrying."})
 
     def snapshot(self):
         return {"goals": self.goals(), "events": self.events(),

@@ -71,3 +71,8 @@ provider, account or tool restrictions.
 
 Keep the project reusable as AI_AGENT_OS_1, AI_AGENT_OS_2 and other independent repositories.
 Preserve scripts/new_instance.py and per-instance ports, state and services.
+
+Leave GitHub follow-ups and diagnostic escalation disabled unless I explicitly enable them.
+Verify their controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
+outputs and docs/FRAMEWORK_UPDATES.md for base provenance and future updates. Do not apply
+base updates to any other existing instance as part of this installation.

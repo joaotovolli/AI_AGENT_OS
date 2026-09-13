@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from agent_os.config import DEFAULTS
+from agent_os.config import DEFAULTS, save
 from agent_os.worker import Worker
 
 
@@ -117,3 +117,38 @@ class WorkerTests(unittest.TestCase):
         with patch("agent_os.worker.Codex.run") as codex:
             self.worker.tick()
             codex.assert_not_called()
+
+    def test_operator_dependency_stops_paid_retries_and_blocks_later_goals(self):
+        work = success("blocked")
+        work["result"]["diagnostic"] = {"blocker_kind": "operator", "blocker": "Choose the data source", "next_action": "Use local setup"}
+        self.state.add_goal("Later", "Task", "Evidence")
+        with patch("agent_os.worker.Codex.run", return_value=work) as codex, patch("agent_os.worker.checks.verify", return_value=([{"passed": True}], "")):
+            self.worker.tick()
+            self.worker.tick()
+        self.assertEqual(codex.call_count, 1)
+        self.assertEqual(self.state.goal(self.goal["id"])["status"], "blocked")
+        self.assertIsNone(self.state.select_goal())
+
+    def test_success_clears_historical_provider_error(self):
+        self.state.set("last_error", "usage limit reached")
+        with patch("agent_os.worker.Codex.run", return_value=success("continue")), patch("agent_os.worker.checks.verify", return_value=([{"passed": True}], "")):
+            self.worker.tick()
+        self.assertEqual(self.state.get("last_error"), "")
+
+    def test_followup_arriving_during_checks_prevents_premature_completion(self):
+        def check(*_):
+            self.state.receive_followup("owner/repo", 1, 12, "owner", "Check the revised fixture", self.goal["id"])
+            return [{"passed": True}], ""
+        with patch("agent_os.worker.Codex.run", return_value=success()), patch("agent_os.worker.checks.verify", side_effect=check):
+            self.worker.tick()
+        self.assertNotEqual(self.state.goal(self.goal["id"])["status"], "completed")
+        self.assertTrue(self.state.pending_followups(self.goal["id"]))
+
+    def test_disabling_intake_still_processes_already_accepted_followups(self):
+        save(self.root, {"github_followups": False})
+        self.state.receive_followup("owner/repo", 1, 12, "owner", "Use revised fixture", self.goal["id"])
+        with patch("agent_os.worker.Codex.run", return_value=success()) as codex, patch("agent_os.worker.checks.verify", return_value=([{"passed": True}], "")):
+            self.worker.tick()
+        self.assertIn("Use revised fixture", codex.call_args_list[0].args[0])
+        self.assertEqual(self.state.followups()[0]["status"], "handled")
+        self.assertEqual(self.state.goal(self.goal["id"])["status"], "completed")

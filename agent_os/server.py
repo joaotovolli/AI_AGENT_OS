@@ -140,7 +140,7 @@ def make_server(root, port=None):
                             raise ValueError("Pause the instance and wait for its attempt to stop")
                         if not re.fullmatch(r"[0-9a-f]{40}", data.get("commit", "")):
                             raise ValueError("Select an explicit framework commit")
-                    if state.get("framework_request"):
+                    if state.get("framework_request") or state.get("framework", {}).get("status") == "applying":
                         raise ValueError("A framework request is already queued")
                     state.set("framework_request", {"action": action, "commit": data.get("commit")})
                     self.respond(202, {"ok": True})
@@ -171,6 +171,7 @@ def make_server(root, port=None):
                         if goal["status"] == "completed":
                             raise ValueError("A completed goal cannot be cancelled")
                         state.update_goal(goal["id"], status="cancelled")
+                        state.cancel_followups(goal["id"])
                         state.event("goal.cancelled", "Cancelled by operator", goal["id"])
                         state.note(goal["id"], "cancelled:" + goal["id"], "cancelled", {"summary": "Cancelled by operator"}, attempt=goal["attempts"])
                     else:

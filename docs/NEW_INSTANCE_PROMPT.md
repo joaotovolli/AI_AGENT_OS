@@ -46,3 +46,8 @@ unrelated work and keep credentials private. Use existing valid GitHub and Codex
 
 The instance is an independent copy. Do not automatically publish its project work back to
 AI_AGENT_OS or create additional instances without a separate instruction.
+
+Leave GitHub follow-ups and diagnostic escalation disabled unless I explicitly enable them.
+Verify their controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
+outputs and docs/FRAMEWORK_UPDATES.md for base provenance and future updates. Do not apply
+base updates to any other existing instance as part of this installation.

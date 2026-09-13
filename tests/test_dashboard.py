@@ -76,3 +76,45 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn('id="goal-form"', html)
         self.assertNotIn(self.secret, html)
+
+    def test_history_requires_authentication_and_survives_cancellation(self):
+        state = State(self.root)
+        goal = state.add_goal("Goal", "Task", "Evidence")
+        state.note(goal["id"], "attempt", "attempt", {"phase": "Validate", "summary": "Totals checked"})
+        state.receive_followup("owner/repo", 1, 1, "owner", "Clarification", goal["id"])
+        path = "/api/history/"+goal["id"]
+        self.assertEqual(self.request(path, auth=False)[0], 401)
+        self.assertEqual(self.request(path)[1][0]["data"]["phase"], "Validate")
+        self.request("/api/control", {"action": "cancel", "goal_id": goal["id"]})
+        self.assertEqual(self.request(path)[1][-1]["kind"], "cancelled")
+        self.assertEqual(state.followups()[0]["status"], "handled")
+        self.assertIn("cancelled", state.followups()[0]["reply"])
+        self.assertEqual(self.request("/api/history/missing")[0], 404)
+
+    def test_feature_settings_and_blocked_goal_retry_preserve_pause(self):
+        values = {"diagnostic_escalation": True, "github_followups": True, "github_operators": ["owner"],
+                  "diagnostic_models": [{"model": "advisor-model", "reasoning": "high"}]}
+        self.assertEqual(self.request("/api/settings", values)[0], 200)
+        state = State(self.root)
+        self.assertGreater(state.get("operator_enabled_since"), 0)
+        for key, value in values.items():
+            self.assertEqual(self.request("/api/state")[1]["settings"][key], value)
+        goal = state.add_goal("Goal", "Task", "Evidence")
+        state.update_goal(goal["id"], status="blocked")
+        state.set("paused", True)
+        self.request("/api/control", {"action": "retry", "goal_id": goal["id"]})
+        self.assertTrue(state.get("paused"))
+        self.assertEqual(state.goal(goal["id"])["status"], "queued")
+
+    def test_framework_requests_require_authentication_pause_and_pinned_commit(self):
+        state = State(self.root)
+        self.assertEqual(self.request("/api/framework", {"action": "check"}, auth=False)[0], 401)
+        self.assertEqual(self.request("/api/framework", {"action": "apply", "commit": "a"*40})[0], 400)
+        state.set("paused", True)
+        self.assertEqual(self.request("/api/framework", {"action": "apply", "commit": "main"})[0], 400)
+        state.set("active_run", {"id": "busy"})
+        self.assertEqual(self.request("/api/framework", {"action": "apply", "commit": "a"*40})[0], 400)
+        state.set("active_run", None)
+        self.assertEqual(self.request("/api/framework", {"action": "apply", "commit": "a"*40})[0], 202)
+        self.assertEqual(state.get("framework_request")["commit"], "a"*40)
+        self.assertEqual(self.request("/api/framework", {"action": "check"})[0], 400)

@@ -44,6 +44,39 @@ Actions also passed on Python 3.11, 3.12 and 3.13 and in the Chromium desktop/mo
 [passing run](https://github.com/joaotovolli/AI_AGENT_OS/actions/runs/34710641713), tested
 commit `76999c3fcd9e7a4fc8e48d077f2feee55095a6be`. Actual WSL2 commissioning remains pending.
 
+## Version 0.2: instance lifecycle improvements
+
+Validation date: 2026-09-13. The change and GitHub validation jobs are linked from
+[PR #7](https://github.com/joaotovolli/AI_AGENT_OS/pull/7) and its
+[checks](https://github.com/joaotovolli/AI_AGENT_OS/pull/7/checks).
+
+The local Linux suite contains 75 regression and integration tests. Coverage includes:
+
+- History surviving the rolling event window, repeated-attempt compaction, per-goal restoration,
+  sanitization, cancelled-goal retention and feature settings readable by retained older runtimes.
+- Authorized follow-up intake, current permission/identity checks, pagination, edited-comment
+  deduplication, interrupted delivery, ambiguous receipt publication and third-party marker spoofing.
+- Diagnostic trigger exclusions for progress and nontechnical dependencies, bounded read-only
+  advice, unchanged worker settings, durable reservations, duplicate advice and advisor memory
+  beyond the recent context window. Codex outcomes and GitHub HTTP responses use fixtures here.
+- Real temporary Git repositories with independent instance history: base discovery, three-way
+  merges, compatible local core edits, source conflicts, failed tests, rejected remote pushes,
+  source changes during validation, resume during validation and retained runtime activation.
+  Workspace content, goals, settings and local tokens are checked for preservation.
+- Authenticated HTTP history/settings/update endpoints, blocked-goal retry, pause preservation,
+  cancellation, and a follow-up arriving before a pending completion is accepted.
+
+The Chromium workflow also covers optional settings persistence, separate project links, open
+history surviving polling, and the update pause gate, alongside existing desktop/mobile,
+authentication, goal, cancellation and text-injection checks. Browser screenshots are saved in
+the CI artifact for 14 days. Python compilation, installer/JavaScript syntax and tracked-content
+credential checks remain required gates.
+
+These checks validate the framework in Linux fixtures. They do not perform a live diagnostic
+consultation, operate a real instance through status comments, apply an update to a user's WSL2
+installation or prove provider entitlement. The public base change does not modify existing
+instances. Target-host commissioning remains an explicit deployment step below.
+
 ## Required WSL2 commissioning
 
 These checks remain pending until the installation prompt is executed on the target host:
