@@ -26,7 +26,7 @@ Independent verification uses `--sandbox read-only` and `approval_policy="never"
 agent has full access; the verification session inspects evidence. Both use the selected model.
 
 JSONL events drive live progress. `turn.completed` usage is accumulated for this instance. The
-application does not claim to know the account's remaining weekly allowance. A exhausted quota
+application does not claim to know the account's remaining weekly allowance. An exhausted quota
 stops productive model execution, preserves the goal and backs off until a later retry works.
 
 During commissioning, test the exact model and tier with the actual installed CLI. If syntax or
@@ -42,3 +42,7 @@ Official references consulted for this implementation:
 - [Configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference): reasoning
   and `service_tier="fast"`, which maps to priority processing in requests.
 - [Models](https://learn.chatgpt.com/docs/models): `gpt-5.6-luna` and selectable Codex model IDs.
+
+The optional [diagnostic advisor](DIAGNOSTICS.md) is a separate bounded read-only consultation.
+It is disabled by default and does not replace the selected model for implementation or
+completion review. The dashboard also exposes [GitHub follow-ups](OPERATORS.md).

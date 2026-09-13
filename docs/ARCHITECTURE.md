@@ -14,8 +14,10 @@ within-turn reasoning and context handling.
 
 The web server remains available while the worker waits on Codex, GitHub or quota. It reads and
 writes the same SQLite database through independent transactions. Dashboard mutations require a
-local bearer token; browser requests also enforce Host and Origin checks. There are no remote
-CDN assets, unauthenticated execution endpoints or arbitrary GitHub issue ingestion.
+local bearer token; browser requests also enforce Host and Origin checks. The optional GitHub
+channel queues authorized status-issue comments as context, with durable IDs and receipts. It
+does not expose dashboard controls or execute arbitrary issues. There are no remote CDN assets
+or unauthenticated execution endpoints.
 
 ## Goal lifecycle
 
@@ -26,12 +28,18 @@ When completion is claimed, a separate Codex session reviews the actual evidence
 
 An accepted result remains provisional until its verified workspace fingerprint still matches,
 its checkpoint is pushed, and the stable branch/runtime activation succeeds. Failure at any step
-keeps the goal open. A pause interrupts the process group; resume requeues it. Cancellation is
+keeps the goal open. Pending accepted follow-ups also prevent completion until addressed.
+The working agent returns completed when its own work/evidence are ready; it must not wait for
+these later supervisor gates. The read-only reviewer inspects the supplied deterministic
+results without trying to rerun mutating tests in a read-only sandbox. A pause interrupts the process group; resume requeues it. Cancellation is
 persistent. Recovering a crashed worker requeues interrupted attempts without losing their history.
 
 Successful unfinished attempts continue after a short scheduling interval. Errors use exponential
 backoff, capped at one hour by default; quota, authentication and configuration errors start at
-60 seconds. There is no maximum goal attempt count. The individual working turn is limited to
+60 seconds. Missing operator input, authentication or configuration enters blocked (Needs input),
+retains user-goal priority and waits for an explicit retry or authorized follow-up. External
+dependencies wait at least five minutes. Neither class invokes a diagnostic advisor.
+There is no maximum goal attempt count. The individual working turn is limited to
 30 minutes by default, followed by another attempt as needed. A verification turn defaults to
 10 minutes. These watchdogs prevent one stalled process from disabling the goal indefinitely.
 
@@ -48,7 +56,11 @@ Completed maintenance schedules the next hour. It does not manufacture code chan
 | `infra/` | Reproducible host changes and sanitized records |
 | `docs/evidence/` | Goal completion evidence |
 | `.agent-os/state.sqlite3` | Local transactional state, attempts and recent events |
-| `.agent-os/config.json` | Local model/runtime configuration |
+| `.agent-os/config.json` | Original local model/runtime configuration, readable by older retained runtimes |
+| `.agent-os/features.json` | Opt-in operator/advisor and update settings |
+| `docs/history/<goal-id>/` | Compact, versioned operational history |
+| `workspace/<project>/project.json` | Validated project access metadata |
+| `.agent-os-base.json` | Source repository, branch and inherited base commit |
 | `.agent-os/runs/` | Private prompts, outputs and bounded logs |
 | `.agent-os/releases/` | Immutable deployed controller versions |
 | `.agent-os/runtime` | Active release symlink |
@@ -73,6 +85,29 @@ sanitized summaries and goal status. API throttling can delay GitHub updates.
 
 The repository includes experimental code as well as successful code. CI failures on working
 branches are evidence to repair, and do not automatically replace the deployed runtime.
+
+## History, advice and framework evolution
+
+Additive SQLite tables store per-goal history and follow-up delivery, separately from the rolling
+event stream. Dirty histories are exported in chunks during the normal checkpoint. Consecutive
+identical entries are compacted with repetition ranges. The last 12 entries inform new attempts;
+older context remains in per-goal Git files. Recovery restores those ranges and message receipts.
+
+The optional diagnostic advisor uses this history to detect distinct unsuccessful approaches to
+one technical blocker. A persisted reservation, bounded read-only turn and cooldown prevent
+immediate duplicate consultations. Its short recommendation returns to the worker. Catalog
+metadata and explicit operator preferences select candidates; model names are not capability
+ranks. See [diagnostics](DIAGNOSTICS.md) for the trigger, controls and limits.
+
+Generated project code stays outside core runtime snapshots. The console discovers validated
+manifests and links to each project surface. See [projects](PROJECTS.md) for the handoff contract.
+
+Framework checks fetch and diff the recorded base at most daily without inference. Explicit
+paused updates merge managed paths in a disposable worktree, validate and scan the result,
+publish/confirm the candidate, fast-forward source and activate. Conflicts stop before source
+replacement; instance state and project areas are excluded. Publication and activation are
+separate operations, with documented recovery for a failure between them. See
+[framework updates](FRAMEWORK_UPDATES.md).
 
 ## Trust and boundaries
 

@@ -5,6 +5,7 @@ import io
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -20,15 +21,18 @@ def main():
     if destination.exists():
         raise SystemExit("Destination already exists; choose an empty new path")
     source = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(source))
+    from agent_os.framework import stamp
     subprocess.run(["gh", "auth", "status"], check=True)
     archive = subprocess.check_output(["git", "archive", "HEAD"], cwd=source)
     destination.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(destination, filter="data")
-    for folder in ("state", "docs/evidence"):
+    for folder in ("state", "docs/evidence", "docs/history"):
         shutil.rmtree(destination / folder, ignore_errors=True)
     (destination / "STATUS.md").write_text("# Instance status\n\nFresh instance. WSL2 bootstrap has not run yet.\n")
     (destination / "docs" / "ACCESS.md").write_text("# Access\n\nRun the WSL2 installer; it generates access instructions for this instance.\n")
+    stamp(source, destination)
     for command in (["git", "init", "-b", "main"], ["git", "add", "."],
                     ["git", "commit", "-m", "feat: initialize reusable AI Agent OS instance"],
                     ["gh", "repo", "create", args.repository, "--private", "--source", ".", "--remote", "origin", "--push"]):

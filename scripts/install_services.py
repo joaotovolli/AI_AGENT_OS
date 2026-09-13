@@ -41,7 +41,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-WorkingDirectory={quote(ROOT)}
+WorkingDirectory={str(ROOT).replace('%', '%%')}
 ExecStart={quote(sys.executable)} {quote(local / 'launch.py')} {quote(ROOT)} {mode}
 Environment={quote('PATH=' + os.environ['PATH'])}
 Restart=always
@@ -106,6 +106,8 @@ See [recovery](RECOVERY.md), [goals](GOALS.md), and [model settings](CODEX.md).
     State(ROOT).set("needs_checkpoint", True)
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
     subprocess.run(["systemctl", "--user", "enable", "--now", *service_names], check=True)
+    for service in service_names:
+        subprocess.run(["systemctl", "--user", "is-active", service], check=True)
     print("Installed services: " + ", ".join(service_names))
 
 

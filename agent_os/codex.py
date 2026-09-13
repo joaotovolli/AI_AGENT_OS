@@ -9,6 +9,14 @@ from pathlib import Path
 from .config import atomic_json, private_dir
 from .process import terminate
 from .redact import redact
+from .history import BLOCKERS
+
+DIAGNOSTIC = {"type": "object", "additionalProperties": False,
+              "properties": {k: {"type": "string"} for k in
+                             ("phase", "approach_key", "approach", "completed", "blocker_key", "blocker")}}
+DIAGNOSTIC["properties"].update({"progress_made": {"type": "boolean"},
+                                 "blocker_kind": {"type": "string", "enum": list(BLOCKERS)}})
+DIAGNOSTIC["required"] = list(DIAGNOSTIC["properties"])
 
 SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -18,13 +26,16 @@ SCHEMA = {
         "progress": {"type": "integer", "minimum": 0, "maximum": 100},
         "evidence": {"type": "array", "items": {"type": "string"}},
         "next_action": {"type": "string"},
+        "diagnostic": DIAGNOSTIC,
+        "operator_reply": {"type": "string"},
     },
-    "required": ["status", "summary", "progress", "evidence", "next_action"],
+    "required": ["status", "summary", "progress", "evidence", "next_action", "diagnostic", "operator_reply"],
 }
 
 
 def validate_result(data):
-    if not isinstance(data, dict) or set(data) != set(SCHEMA["required"]):
+    legacy = {"status", "summary", "progress", "evidence", "next_action"}
+    if not isinstance(data, dict) or not legacy <= set(data) or set(data) - set(SCHEMA["required"]):
         raise ValueError("Incomplete Codex result")
     if data["status"] not in ("continue", "completed", "blocked"):
         raise ValueError("Invalid result status")
@@ -34,6 +45,16 @@ def validate_result(data):
         raise ValueError("Invalid result text")
     if not isinstance(data["evidence"], list) or any(not isinstance(e, str) for e in data["evidence"]):
         raise ValueError("Invalid result evidence")
+    if "operator_reply" in data and (not isinstance(data["operator_reply"], str) or len(data["operator_reply"]) > 2000):
+        raise ValueError("Invalid operator reply")
+    if "diagnostic" in data:
+        value = data["diagnostic"]
+        if not isinstance(value, dict) or set(value) != set(DIAGNOSTIC["required"]):
+            raise ValueError("Invalid diagnostic fields")
+        if type(value["progress_made"]) is not bool or value["blocker_kind"] not in BLOCKERS:
+            raise ValueError("Invalid diagnostic classification")
+        if any(not isinstance(v, str) or len(v) > 2000 for k, v in value.items() if k != "progress_made"):
+            raise ValueError("Invalid diagnostic text")
     return data
 
 

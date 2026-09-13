@@ -1,6 +1,7 @@
 """Loopback dashboard with token authentication and browser-origin checks."""
 import hmac
 import json
+import re
 import signal
 import threading
 import time
@@ -9,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from . import config, deploy
+from . import config, deploy, projects
 from .state import State
 
 STATIC = Path(__file__).parent / "static"
@@ -38,7 +39,10 @@ def make_server(root, port=None):
             self.send_header("Referrer-Policy", "no-referrer")
             self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # A browser may disconnect during refresh or runtime activation.
 
         def valid_host(self):
             port_actual = self.server.server_address[1]
@@ -75,8 +79,15 @@ def make_server(root, port=None):
             if path == "/api/state":
                 data = state.snapshot()
                 data.update({"settings": config.load(root), "instance": root.name,
+                             "projects": projects.discover(root),
                              "models": config.available_models(), "release": state.get("release", "initial")})
                 self.respond(200, data)
+            elif path.startswith("/api/history/"):
+                goal_id = path.removeprefix("/api/history/")
+                if not state.goal(goal_id):
+                    self.respond(404, {"error": "Goal not found"})
+                else:
+                    self.respond(200, state.history(goal_id, 100))
             else:
                 self.respond(404, {"error": "Not found"})
 
@@ -103,10 +114,16 @@ def make_server(root, port=None):
                     self.respond(201, result)
                 elif path == "/api/settings":
                     # Port changes require reinstalling service links; the dashboard edits execution settings only.
-                    allowed = {"model", "reasoning", "fast", "idle_seconds", "step_timeout_seconds"}
+                    allowed = {"model", "reasoning", "fast", "idle_seconds", "step_timeout_seconds",
+                               "github_followups", "github_operators", "diagnostic_escalation", "diagnostic_models",
+                               "diagnostic_min_attempts", "diagnostic_cooldown_seconds", "diagnostic_timeout_seconds"}
                     if set(data) - allowed:
                         raise ValueError("These settings must be changed with the installation CLI")
+                    was_enabled = config.load(root)["github_followups"]
                     result = config.save(root, data)
+                    if result["github_followups"] and not was_enabled:
+                        state.set("operator_enabled_since", time.time())
+                        state.set("operator_cursor", None)
                     state.set("needs_checkpoint", True)
                     state.set("failures", 0)
                     for goal in state.goals():
@@ -114,6 +131,19 @@ def make_server(root, port=None):
                             state.update_goal(goal["id"], next_run=0)
                     state.event("settings.updated", f"Execution settings saved: {result['model']} / {result['reasoning']} / Fast {result['fast']}")
                     self.respond(200, result)
+                elif path == "/api/framework":
+                    action = data.get("action")
+                    if action not in ("check", "apply"):
+                        raise ValueError("Select check or apply")
+                    if action == "apply":
+                        if not state.get("paused", False) or state.get("active_run"):
+                            raise ValueError("Pause the instance and wait for its attempt to stop")
+                        if not re.fullmatch(r"[0-9a-f]{40}", data.get("commit", "")):
+                            raise ValueError("Select an explicit framework commit")
+                    if state.get("framework_request") or state.get("framework", {}).get("status") == "applying":
+                        raise ValueError("A framework request is already queued")
+                    state.set("framework_request", {"action": action, "commit": data.get("commit")})
+                    self.respond(202, {"ok": True})
                 elif path == "/api/control":
                     action = data.get("action")
                     if action in ("pause", "resume"):
@@ -128,6 +158,12 @@ def make_server(root, port=None):
                         for goal in state.goals():
                             if goal["status"] == "waiting":
                                 state.update_goal(goal["id"], next_run=0)
+                    elif action == "retry":
+                        goal = state.goal(data.get("goal_id"))
+                        if not goal or goal["status"] not in ("blocked", "waiting"):
+                            raise ValueError("Select a blocked or waiting goal")
+                        state.update_goal(goal["id"], status="queued", next_run=0)
+                        state.event("operator.retry", "Operator requested another attempt", goal["id"])
                     elif action == "cancel":
                         goal = state.goal(data.get("goal_id"))
                         if not goal or goal["kind"] == "bootstrap":
@@ -135,7 +171,9 @@ def make_server(root, port=None):
                         if goal["status"] == "completed":
                             raise ValueError("A completed goal cannot be cancelled")
                         state.update_goal(goal["id"], status="cancelled")
+                        state.cancel_followups(goal["id"])
                         state.event("goal.cancelled", "Cancelled by operator", goal["id"])
+                        state.note(goal["id"], "cancelled:" + goal["id"], "cancelled", {"summary": "Cancelled by operator"}, attempt=goal["attempts"])
                     else:
                         raise ValueError("Unknown control action")
                     state.set("needs_checkpoint", True)

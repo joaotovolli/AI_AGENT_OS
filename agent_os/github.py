@@ -50,6 +50,7 @@ class GitHub:
         return json.loads(result.output) if result.output.strip() else {}
 
     def render(self, snapshot=None):
+        from .projects import discover
         snapshot = snapshot if snapshot is not None else self.state.snapshot()
         lines = ["# Instance status", "", f"Updated: {utc(time.time())}", "",
                  f"Instance: `{self.root.name}`", f"Ready: **{snapshot['ready']}**",
@@ -59,6 +60,15 @@ class GitHub:
             lines += [f"### {redact(goal['title']).replace(chr(10), ' ')}",
                       f"`{goal['id']}` · {goal['status']} · {goal['progress']}% · attempts: {goal['attempts']}",
                       "", redact(goal["summary"]), ""]
+            if self.state.history(goal["id"], 1):
+                lines += [f"[Diagnostic history](docs/history/{goal['id']}/README.md)", ""]
+        projects = discover(self.root)
+        if projects:
+            lines += ["## Projects", ""]
+            for project in projects:
+                name = redact(project["name"]).replace("[", "").replace("]", "")
+                lines += [f"- {name}: {project.get('url') or project['path']} ({project.get('status', 'building')})"]
+            lines += [""]
         lines += ["## Recent activity", ""]
         lines += [f"- {utc(e['at'])}: {redact(e['message'])}" for e in reversed(snapshot["events"][:15])]
         lines += ["", "Progress percentages are estimates. Completion requires verification and a successful GitHub checkpoint.",
@@ -72,9 +82,9 @@ class GitHub:
         # Persist throttle before I/O so an outage does not hammer GitHub.
         self.state.set("last_live_update", time.time())
         try:
-            repo, _ = self.identity()
+            repo, branch = self.identity()
             number = self.state.get("status_issue")
-            body = self.render().replace("(docs/ACCESS.md)", f"(https://github.com/{repo}/blob/main/docs/ACCESS.md)")
+            body = re.sub(r"\(docs/([^)]*)\)", lambda m: f"(https://github.com/{repo}/blob/{branch}/docs/{m[1]})", self.render())
             if number:
                 self.gh(f"repos/{repo}/issues/{number}", "PATCH", {"body": body})
             else:
@@ -118,7 +128,7 @@ class GitHub:
         files = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=self.root)
         digest = hashlib.sha256()
         for name in sorted(set(files.decode().split("\0"))):
-            if not name or name in ("STATUS.md", "state/checkpoint.json") or name.startswith(".agent-os/"):
+            if not name or name in ("STATUS.md", "state/checkpoint.json") or name.startswith((".agent-os/", "docs/history/")):
                 continue
             path = self.root / name
             digest.update(name.encode())
@@ -131,7 +141,9 @@ class GitHub:
         return digest.hexdigest()
 
     def checkpoint(self, message, completion=None):
+        from .history import export
         repo, branch = self.identity()
+        export(self.root, self.state)
         snapshot = self.state.snapshot()
         if completion:
             for goal in snapshot["goals"]:
@@ -140,7 +152,8 @@ class GitHub:
                     if goal["kind"] == "bootstrap":
                         snapshot["ready"] = True
         self.root.joinpath("STATUS.md").write_text(self.render(snapshot), encoding="utf-8")
-        public = {"format_version": 1, "repository": repo, "settings": load(self.root),
+        public = {"format_version": 2, "repository": repo, "settings": load(self.root),
+                  "checkpoint_at": time.time(), "followup_receipts": self.state.followup_receipts(),
                   "goals": snapshot["goals"], "ready": snapshot["ready"]}
         # Checkpoint is a recovery aid, never a store for tokens or raw model output.
         public = json.loads(redact(json.dumps(public, ensure_ascii=False)))
