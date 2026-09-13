@@ -1,5 +1,6 @@
 """Transactional goal state; SQLite stays local, sanitized checkpoints go to Git."""
 import json
+import re
 import sqlite3
 import time
 import uuid
@@ -34,6 +35,17 @@ class State:
               CREATE TABLE IF NOT EXISTS runs (
                 id TEXT PRIMARY KEY, goal_id TEXT NOT NULL, started REAL NOT NULL,
                 finished REAL, status TEXT NOT NULL, result TEXT NOT NULL DEFAULT '{}');
+              CREATE TABLE IF NOT EXISTS history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, goal_id TEXT NOT NULL,
+                event_key TEXT UNIQUE NOT NULL, at REAL NOT NULL, attempt INTEGER,
+                kind TEXT NOT NULL, data TEXT NOT NULL);
+              CREATE INDEX IF NOT EXISTS history_goal ON history(goal_id, id);
+              CREATE TABLE IF NOT EXISTS followups (
+                id TEXT PRIMARY KEY, repository TEXT NOT NULL, issue INTEGER NOT NULL,
+                comment INTEGER NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL,
+                goal_id TEXT, status TEXT NOT NULL DEFAULT 'queued', run_id TEXT,
+                received REAL NOT NULL, acknowledged INTEGER NOT NULL DEFAULT 0,
+                answered INTEGER NOT NULL DEFAULT 0, reply TEXT NOT NULL DEFAULT '');
             """)
 
     @contextmanager
@@ -83,6 +95,8 @@ class State:
         if not isinstance(commands, list) or len(commands) > 20 or any(not isinstance(c, str) or not c.strip() or len(c) > 2000 for c in commands):
             raise ValueError("Verification commands must be a list of up to 20 commands")
         goal_id = goal_id or uuid.uuid4().hex[:12]
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", goal_id):
+            raise ValueError("Invalid goal ID")
         now = time.time()
         with self.db() as db:
             db.execute("""INSERT INTO goals
@@ -114,14 +128,75 @@ class State:
         goals = self.goals()
         bootstrap = next((g for g in goals if g["kind"] == "bootstrap"), None)
         if bootstrap and bootstrap["status"] != "completed":
-            return bootstrap if bootstrap["next_run"] <= now and bootstrap["status"] != "cancelled" else None
-        active = [g for g in goals if g["status"] in ("queued", "running", "waiting")]
+            return bootstrap if bootstrap["next_run"] <= now and bootstrap["status"] not in ("cancelled", "blocked") else None
+        active = [g for g in goals if g["status"] in ("queued", "running", "waiting", "blocked")]
         # An active user goal retains priority through backoff; maintenance cannot consume its quota.
         users = [g for g in active if g["kind"] == "user"]
         if users:
             goal = users[0]
-            return goal if goal["next_run"] <= now else None
-        return next((g for g in active if g["next_run"] <= now), None)
+            return goal if goal["next_run"] <= now and goal["status"] != "blocked" else None
+        return next((g for g in active if g["next_run"] <= now and g["status"] != "blocked"), None)
+
+    def note(self, goal_id, event_key, kind, data, attempt=None, at=None):
+        from .history import text
+        if not self.goal(goal_id):
+            raise ValueError("History requires an existing goal")
+        clean = {text(k, 60): text(v) if isinstance(v, str) else v for k, v in data.items()
+                 if isinstance(v, (str, int, float, bool)) or v is None}
+        with self.db() as db:
+            db.execute("INSERT OR IGNORE INTO history (goal_id,event_key,at,attempt,kind,data) VALUES (?,?,?,?,?,?)",
+                       (goal_id, event_key, time.time() if at is None else at, attempt, text(kind, 60), json.dumps(clean)))
+        self.set("needs_checkpoint", True)
+
+    def history(self, goal_id, limit=12):
+        with self.db() as db:
+            rows = db.execute("SELECT * FROM history WHERE goal_id=? ORDER BY id DESC LIMIT ?",
+                              (goal_id, -1 if limit is None else limit)).fetchall()
+        return [dict(row, data=json.loads(row["data"])) for row in reversed(rows)]
+
+    def dirty_histories(self):
+        with self.db() as db:
+            rows = db.execute("SELECT goal_id,MAX(id) AS last FROM history GROUP BY goal_id").fetchall()
+        return [r["goal_id"] for r in rows if r["last"] > self.get("history_exported:" + r["goal_id"], 0)]
+
+    def receive_followup(self, repository, issue, comment, author, body, goal_id=None, received=None):
+        from .redact import redact
+        identity = f"{repository}:{comment}"
+        with self.db() as db:
+            inserted = db.execute("""INSERT OR IGNORE INTO followups
+                (id,repository,issue,comment,author,body,goal_id,received) VALUES (?,?,?,?,?,?,?,?)""",
+                (identity, repository, issue, comment, author, redact(body)[:8000], goal_id,
+                 time.time() if received is None else received)).rowcount
+        if inserted:
+            self.event("operator.received", "Authorized GitHub follow-up queued", goal_id)
+            self.set("needs_checkpoint", True)
+        return bool(inserted)
+
+    def followups(self, pending=False):
+        with self.db() as db:
+            return [dict(r) for r in db.execute("SELECT * FROM followups " +
+                ("WHERE status!='handled' OR acknowledged=0 OR answered=0 " if pending else "") + "ORDER BY received,comment")]
+
+    def claim_followups(self, goal_id, run_id):
+        goal = self.goal(goal_id)
+        with self.db() as db:
+            db.execute("UPDATE followups SET status='delivered',run_id=?,goal_id=? WHERE status='queued' "
+                       "AND (goal_id=? OR (goal_id IS NULL AND ?='user'))", (run_id, goal_id, goal_id, goal["kind"]))
+            return [dict(r) for r in db.execute("SELECT * FROM followups WHERE run_id=? AND status='delivered' ORDER BY received,comment", (run_id,))]
+
+    def finish_followups(self, run_id, success, reply=""):
+        from .history import text
+        with self.db() as db:
+            db.execute("UPDATE followups SET status=?,reply=?,run_id=NULL WHERE run_id=? AND status='delivered'",
+                       ("handled" if success else "queued", text(reply, 1200) if success else "", run_id))
+        self.set("needs_checkpoint", True)
+
+    def pending_followups(self, goal_id):
+        return any(f["status"] == "queued" and f["goal_id"] == goal_id for f in self.followups())
+
+    def followup_receipts(self):
+        keys = ("id", "repository", "issue", "comment", "goal_id", "status", "received")
+        return [{k: item[k] for k in keys} for item in self.followups()]
 
     def event(self, kind, message, goal_id=None):
         # Raw model/tool output is never written into the public event stream.
@@ -150,12 +225,16 @@ class State:
         with self.db() as db:
             count = db.execute("UPDATE goals SET status='queued',next_run=0 WHERE status='running'").rowcount
             db.execute("UPDATE runs SET status='interrupted',finished=? WHERE status='running'", (time.time(),))
+            db.execute("UPDATE followups SET status='queued',run_id=NULL WHERE status='delivered'")
         if count:
             self.event("worker.recovered", f"Recovered {count} interrupted goal(s); persisted attempts retained")
         self.set("active_run", None)
 
     def snapshot(self):
         return {"goals": self.goals(), "events": self.events(),
+                "diagnostics": {g["id"]: self.history(g["id"], 1) for g in self.goals()},
+                "followups": self.followup_receipts()[-50:], "operator_channel": self.get("operator_channel", {}),
+                "framework": self.get("framework", {}),
                 "ready": self.get("ready", False), "paused": self.get("paused", False),
                 "active_run": self.get("active_run"), "worker_heartbeat": self.get("worker_heartbeat"),
                 "next_maintenance": self.get("next_maintenance"),

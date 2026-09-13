@@ -5,13 +5,15 @@ let access = localStorage.getItem('agent-os-access') || '';
 let snapshot = null;
 let settingsLoaded = false;
 let busy = false;
+const expandedHistory = new Set();
+const historyCache = new Map();
 const fragment = new URLSearchParams(location.hash.slice(1));
 if (fragment.has('token')) {
   access = fragment.get('token');
   localStorage.setItem('agent-os-access', access);
   history.replaceState(null, '', location.pathname);
 }
-const friendly = {queued:'Queued',running:'Working',waiting:'Retrying',completed:'Completed',cancelled:'Cancelled'};
+const friendly = {queued:'Queued',running:'Working',waiting:'Retrying',blocked:'Needs input',completed:'Completed',cancelled:'Cancelled'};
 function node(tag, text, className) {
   const el = document.createElement(tag); if (text !== undefined) el.textContent = text;
   if (className) el.className = className; return el;
@@ -33,7 +35,7 @@ function paint(data) {
   $('instance').textContent=data.instance; $('release').textContent='Version '+data.release;
   const alive=data.worker_heartbeat && Date.now()/1000-data.worker_heartbeat<90;
   $('readiness').textContent=data.paused?'Paused':!alive?'Service offline':data.ready?'Ready':'Preparing';
-  $('worker-status').textContent=data.active_run?'Attempt in progress':alive?'Supervisor active':'Check the WSL2 services';
+  $('worker-status').textContent=data.active_run?.role==='diagnostic'?'Diagnostic consultation':data.active_run?'Attempt in progress':alive?'Supervisor active':'Check the WSL2 services';
   const active=data.active_run||data.settings;
   $('current-model').textContent=active.model.replace('gpt-','');
   $('current-reasoning').textContent=active.reasoning+' · '+(active.fast?'Fast':'Standard');
@@ -45,7 +47,7 @@ function paint(data) {
   const link=data.github.live_url || (data.github.repository?'https://github.com/'+data.github.repository:null);
   if(link && /^https:\/\/github\.com\/[A-Za-z0-9_.\/-]+$/.test(link)){$('github-link').href=link;$('github-link').hidden=false;}
   $('pause').textContent=data.paused?'Resume':'Pause';
-  const error=data.github.error||data.github.live_error||data.last_error;
+  const error=data.github.error||data.github.live_error||data.operator_channel?.error||data.last_error;
   notice(error||(!data.ready?'The system is preparing and testing this instance. Your goals will run once this step is complete.':''));
   $('goals').replaceChildren();
   const visible=data.goals.filter(g=>g.kind!=='maintenance'||g.status!=='completed').slice(-30).reverse();
@@ -56,14 +58,37 @@ function paint(data) {
     const meta=node('div',undefined,'goal-meta');meta.append(node('span',friendly[g.status]||g.status,'badge '+g.status),node('span','Attempt '+g.attempts),node('span',g.kind==='bootstrap'?'Setup':g.kind==='maintenance'?'Maintenance':'Goal'));
     if(g.status==='waiting'&&g.next_run>Date.now()/1000)meta.append(node('span','Resumes: '+time(g.next_run)));
     content.append(meta);side.append(node('strong',g.progress+'%'));
+    row.dataset.goalId=g.id;
+    const latest=data.diagnostics?.[g.id]?.[0]?.data;
+    if(latest)content.append(node('p',[latest.phase,latest.blocker||latest.completed,latest.next_action].filter(Boolean).join(' · '),'goal-summary'));
+    const details=node('details');details.append(node('summary','Diagnostic history'));
+    const historyBody=node('div',undefined,'diagnostic-history');details.append(historyBody);
+    const renderHistory=entries=>historyBody.replaceChildren(...(entries.length?entries.map(e=>node('p',time(e.at)+' · '+(e.attempt?'Attempt '+e.attempt+' · ':'')+e.kind+' · '+[e.data.phase,e.data.approach,e.data.summary,e.data.blocker,e.data.next_action,e.data.verification].filter(Boolean).join(' · '))):[node('p','No attempt summaries recorded yet.')]));
+    renderHistory(historyCache.get(g.id)||[]);
+    const loadHistory=async()=>{try{const entries=await api('/api/history/'+encodeURIComponent(g.id));historyCache.set(g.id,entries);if(historyBody.isConnected)renderHistory(entries);}catch(error){historyBody.textContent=error.message;}};
+    details.open=expandedHistory.has(g.id);
+    details.addEventListener('toggle',()=>{if(details.open){expandedHistory.add(g.id);loadHistory();}else expandedHistory.delete(g.id);});
+    content.append(details);
+    if(g.status==='blocked'||g.status==='waiting'){const retry=node('button','Retry goal','secondary');retry.onclick=()=>action('/api/control',{action:'retry',goal_id:g.id});side.append(retry);}
     const bar=node('div',undefined,'bar'), progress=document.createElement('progress');progress.max=100;progress.value=g.progress;progress.setAttribute('aria-label','Estimated progress');bar.append(progress);side.append(bar);
     if(g.kind!=='bootstrap'&&!['completed','cancelled'].includes(g.status)){const cancel=node('button','Cancel','cancel');cancel.onclick=()=>action('/api/control',{action:'cancel',goal_id:g.id});side.append(cancel);}
     row.append(content,side);$('goals').append(row);
   }
+  $('projects').replaceChildren();
+  for(const project of data.projects||[]){const card=node('article',undefined,'project-card');card.append(node('h3',project.name),node('p',project.description||project.path),node('small',project.status||'building'));
+    if(project.url){const link=node('a','Open project ↗','button secondary');link.href=project.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}else card.append(node('code',project.path));$('projects').append(card);}
+  if(!data.projects?.length)$('projects').append(node('p','Project links appear here when the agent registers an output.','empty'));
+  const framework=data.framework||{};
+  $('framework-status').textContent=[framework.status||'Not checked',framework.target_commit?'Target '+framework.target_commit.slice(0,12):'',framework.message||''].filter(Boolean).join(' · ');
+  $('framework-apply').disabled=framework.status!=='available'||!data.paused||!!data.active_run;
   $('checks').replaceChildren(...data.last_checks.map(c=>node('span',(c.passed?'✓ ':'× ')+c.name,'check'+(c.passed?'':' fail'))));
   $('events').replaceChildren();
   for(const e of data.events.slice(0,24)){const row=node('div',undefined,'event');row.append(node('time',new Date(e.at*1000).toLocaleTimeString('en-GB')),node('span',e.message));$('events').append(row);}
-  if(!settingsLoaded){$('model').value=data.settings.model;$('reasoning').value=data.settings.reasoning;$('fast').checked=data.settings.fast;settingsLoaded=true;
+  if(!settingsLoaded){$('model').value=data.settings.model;$('reasoning').value=data.settings.reasoning;$('fast').checked=data.settings.fast;
+    $('diagnostic-escalation').checked=data.settings.diagnostic_escalation;
+    $('diagnostic-models').value=(data.settings.diagnostic_models||[]).map(m=>m.model+' '+m.reasoning).join('\n');
+    $('github-followups').checked=data.settings.github_followups;
+    $('github-operators').value=(data.settings.github_operators||[]).join(', ');settingsLoaded=true;
     const ids=new Set([...$('model-options').options].map(o=>o.value));for(const m of data.models){if(!ids.has(m.id)){const o=node('option');o.value=m.id;$('model-options').append(o);ids.add(m.id);}}
   }
   $('usage').textContent=((data.usage.input_tokens||0)+(data.usage.output_tokens||0)).toLocaleString('en-GB');
@@ -77,5 +102,7 @@ $('pause').onclick=()=>action('/api/control',{action:snapshot?.paused?'resume':'
 $('wake').onclick=()=>action('/api/control',{action:'wake'});
 $('goal-form').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"]');button.disabled=true;
   try {if(await action('/api/goals',{title:$('goal-title').value,description:$('goal-description').value,acceptance:$('goal-acceptance').value,commands:$('goal-commands').value.split('\n').map(x=>x.trim()).filter(Boolean)}))e.target.reset();}finally{button.disabled=false;}};
-$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked}))notice('Settings saved. They will apply to the next attempt.');};
+$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked,diagnostic_escalation:$('diagnostic-escalation').checked,github_followups:$('github-followups').checked,github_operators:$('github-operators').value.split(',').map(s=>s.trim()).filter(Boolean),diagnostic_models:$('diagnostic-models').value.split('\n').filter(s=>s.trim()).map(s=>{const parts=s.trim().split(/\s+/);return {model:parts[0],reasoning:parts.slice(1).join(' ')};})}))notice('Settings saved. They will apply to the next attempt.');};
+$('framework-check').onclick=()=>action('/api/framework',{action:'check'});
+$('framework-apply').onclick=()=>action('/api/framework',{action:'apply',commit:snapshot?.framework?.target_commit});
 refresh();setInterval(refresh,3000);

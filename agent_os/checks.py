@@ -16,12 +16,24 @@ def verify(root, goal, config, cancel=lambda: False, heartbeat=lambda: None):
     log = private_dir(root) / "verification.txt"
     commands = [[sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]]
     names = ["Regression suite"]
+    commands.append([sys.executable, "-m", "compileall", "-q", "agent_os", "scripts", "tests"])
+    names.append("Python syntax")
+    for path, argv, label in (("scripts/install-wsl.sh", ["bash", "-n"], "Installer syntax"),
+                             ("agent_os/static/app.js", ["node", "--check"], "Dashboard JavaScript syntax")):
+        if (root / path).is_file():
+            commands.append([*argv, path])
+            names.append(label)
     for number, command in enumerate(goal["commands"], start=1):
         commands.append(["bash", "-lc", command])
         names.append(f"Goal acceptance command {number}")
     with log.open("w") as out:
         for name, command in zip(names, commands):
-            result = run(command, root, timeout=config["verify_timeout_seconds"], cancel=cancel, heartbeat=heartbeat)
+            try:
+                result = run(command, root, timeout=config["verify_timeout_seconds"], cancel=cancel, heartbeat=heartbeat)
+            except OSError:
+                checks.append({"name": name, "passed": False, "at": time.time()})
+                out.write(f"\n{name}\nRequired verification executable could not start.\n")
+                continue
             passed = result.returncode == 0 and not result.cancelled and not result.timed_out
             if name == "Regression suite" and ("Ran 0 tests" in result.output or "Ran " not in result.output):
                 passed = False

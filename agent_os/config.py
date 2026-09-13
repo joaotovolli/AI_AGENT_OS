@@ -12,6 +12,13 @@ DEFAULTS = {
     "verify_timeout_seconds": 600, "retry_base_seconds": 15,
     "retry_max_seconds": 3600, "github_progress_seconds": 60,
 }
+LEGACY_SETTINGS = frozenset(DEFAULTS)
+DEFAULTS.update({
+    "github_followups": False, "github_operators": [],
+    "diagnostic_escalation": False, "diagnostic_models": [],
+    "diagnostic_min_attempts": 3, "diagnostic_cooldown_seconds": 3600,
+    "diagnostic_timeout_seconds": 180, "framework_check_seconds": 86400,
+})
 _LOCK = threading.RLock()
 
 
@@ -45,12 +52,28 @@ def validate(data):
     for key in ("model", "reasoning"):
         if key in data and (not isinstance(data[key], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}", data[key])):
             raise ValueError(f"Invalid {key}")
-    if "fast" in data and type(data["fast"]) is not bool:
-        raise ValueError("fast must be true or false")
+    for key in ("fast", "github_followups", "diagnostic_escalation"):
+        if key in data and type(data[key]) is not bool:
+            raise ValueError(f"{key} must be true or false")
+    if "github_operators" in data:
+        users = data["github_operators"]
+        if not isinstance(users, list) or len(users) > 20 or any(
+                not isinstance(u, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}", u) for u in users):
+            raise ValueError("github_operators must contain up to 20 GitHub logins")
+    if "diagnostic_models" in data:
+        models = data["diagnostic_models"]
+        if not isinstance(models, list) or len(models) > 5:
+            raise ValueError("Use up to five ordered diagnostic model preferences")
+        for model in models:
+            if not isinstance(model, dict) or set(model) != {"model", "reasoning"}:
+                raise ValueError("Each diagnostic preference requires model and reasoning")
+            validate(model)
     limits = {"port": (1024, 65535), "idle_seconds": (60, 86400),
               "step_timeout_seconds": (30, 86400), "verify_timeout_seconds": (10, 7200),
               "retry_base_seconds": (1, 3600), "retry_max_seconds": (60, 86400),
-              "github_progress_seconds": (30, 3600)}
+              "github_progress_seconds": (30, 3600), "diagnostic_min_attempts": (3, 20),
+              "diagnostic_cooldown_seconds": (300, 86400), "diagnostic_timeout_seconds": (30, 600),
+              "framework_check_seconds": (3600, 604800)}
     for key, (low, high) in limits.items():
         if key in data and (type(data[key]) is not int or not low <= data[key] <= high):
             raise ValueError(f"{key} must be an integer from {low} to {high}")
@@ -61,6 +84,9 @@ def load(root):
     path = private_dir(root) / "config.json"
     with _LOCK:
         overrides = json.loads(path.read_text()) if path.exists() else {}
+        features = private_dir(root) / "features.json"
+        if features.exists():
+            overrides.update(json.loads(features.read_text()))
         return dict(DEFAULTS, **validate(overrides))
 
 
@@ -68,7 +94,9 @@ def save(root, updates):
     with _LOCK:
         config = load(root)
         config.update(validate(updates))
-        atomic_json(private_dir(root) / "config.json", config)
+        # Retained pre-feature runtimes reject unknown keys. Keep their configuration readable.
+        atomic_json(private_dir(root) / "config.json", {k: v for k, v in config.items() if k in LEGACY_SETTINGS})
+        atomic_json(private_dir(root) / "features.json", {k: v for k, v in config.items() if k not in LEGACY_SETTINGS})
         return config
 
 
@@ -90,8 +118,17 @@ def available_models():
     try:
         data = json.loads((codex_dir / "models_cache.json").read_text())
         models = data.get("models", [])
-        return [{"id": m.get("slug", m.get("id")),
-                 "name": m.get("display_name", m.get("slug", m.get("id")))}
-                for m in models if isinstance(m, dict) and (m.get("slug") or m.get("id"))]
+        result = []
+        for m in models:
+            if not isinstance(m, dict) or not (m.get("slug") or m.get("id")):
+                continue
+            levels = m.get("supported_reasoning_levels", m.get("supported_reasoning_efforts", []))
+            upgrade = m.get("upgrade") or {}
+            result.append({"id": m.get("slug", m.get("id")),
+                           "name": m.get("display_name", m.get("slug", m.get("id"))),
+                           "reasoning": [v.get("effort") if isinstance(v, dict) else v for v in levels],
+                           "default_reasoning": m.get("default_reasoning_level", "medium"),
+                           "upgrade": upgrade.get("model") if isinstance(upgrade, dict) else None})
+        return result
     except (OSError, ValueError, AttributeError):
         return []

@@ -18,7 +18,7 @@
 <div id="app" hidden>
   <aside>
     <a class="brand" href="/"><span class="brand-mark">AO</span><span>AI Agent OS<small id="instance">Local instance</small></span></a>
-    <nav><a href="#overview" class="selected">Overview</a><a href="#new-goal">New goal</a><a href="#settings">Model and execution</a><a href="#activity">Activity</a></nav>
+    <nav><a href="#overview" class="selected">Overview</a><a href="#projects-panel">Projects</a><a href="#new-goal">New goal</a><a href="#settings">Model and execution</a><a href="#activity">Activity</a></nav>
     <div class="sidebar-footer"><span class="dot"></span> WSL2 · Full access<p id="release" class="muted"></p><button id="lock" class="quiet">Lock dashboard</button></div>
   </aside>
   <main id="overview">
@@ -34,6 +34,7 @@
       <div class="section-head"><div><p class="eyebrow">WORK QUEUE</p><h2>Goals</h2></div><div class="actions"><button id="wake" class="secondary">Run now</button><button id="pause" class="secondary">Pause</button><a href="#new-goal" class="button primary">+ New goal</a></div></div>
       <div id="goals" aria-live="polite"></div>
     </section>
+    <section class="panel" id="projects-panel"><p class="eyebrow">BUILT BY YOUR AGENT</p><h2>Projects</h2><p class="muted">Open each project in its own interface. This console manages goals and execution.</p><div id="projects"></div></section>
     <div class="columns">
       <section class="panel" id="new-goal"><p class="eyebrow">NEXT OBJECTIVE</p><h2>What shall we build?</h2>
         <form id="goal-form">
@@ -50,11 +51,16 @@
           <p class="muted">Choose or enter any model ID supported by your Codex.</p>
           <label for="reasoning">Reasoning</label><input id="reasoning" list="reasoning-options" required><datalist id="reasoning-options"><option value="minimal"><option value="low"><option value="medium"><option value="high"><option value="xhigh"><option value="max"></datalist>
           <label class="switch-row" for="fast"><span><strong>Fast</strong><small>Uses the Fast tier when available for your account and model.</small></span><input type="checkbox" id="fast" role="switch"></label>
+          <label class="switch-row" for="diagnostic-escalation"><span><strong>Diagnostic advisor</strong><small>Allow a short consultation with a stronger available model when distinct attempts stall on the same technical blocker. Your working model stays unchanged.</small></span><input type="checkbox" id="diagnostic-escalation" role="switch"></label>
+          <details><summary>Diagnostic preferences</summary><label for="diagnostic-models">Stronger model preferences, in order</label><textarea id="diagnostic-models" rows="3" placeholder="model-id reasoning"></textarea><p class="muted">One model ID and reasoning level per line. Leave empty to use upgrade suggestions from the installed Codex catalog. Unavailable choices are skipped.</p></details>
+          <label class="switch-row" for="github-followups"><span><strong>GitHub follow-ups</strong><small>Receive authorized comments from this instance's status issue as context for its goals.</small></span><input type="checkbox" id="github-followups" role="switch"></label>
+          <label for="github-operators">Authorized GitHub logins</label><input id="github-operators" placeholder="Repository owner by default"><p class="muted">Comma-separated. Each operator must also have current write access to the repository. Never post credentials in comments.</p>
           <button class="primary" type="submit">Save settings</button><p class="muted">Applies to the next attempt. The current run keeps its settings.</p>
         </form>
         <div class="usage"><span>Tokens recorded for this instance</span><strong id="usage">0</strong><small>Usage reported by the CLI. The remaining account allowance is unknown.</small></div>
       </section>
     </div>
+    <section class="panel" id="framework-panel"><div class="section-head"><div><p class="eyebrow">INSTANCE FRAMEWORK</p><h2>Base updates</h2></div><div class="actions"><button id="framework-check" class="secondary">Check for updates</button><button id="framework-apply" class="secondary" disabled>Apply validated update</button></div></div><p id="framework-status" class="muted">Update provenance has not been checked.</p><p class="muted">Updates are checked automatically. To apply, pause and let the active attempt stop. Conflicts require deliberate resolution; the previous runtime is retained.</p></section>
     <section class="panel" id="activity"><div class="section-head"><div><p class="eyebrow">RECENT HISTORY</p><h2>Activity and checks</h2></div><span class="muted">Updates every 3 seconds</span></div><div id="checks" class="checks"></div><div id="events"></div></section>
     <footer>Autonomy with a record. Completion with evidence.<span id="last-refresh"></span></footer>
   </main>
