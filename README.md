@@ -1,11 +1,26 @@
 # AI Agent OS
 
+[![CI](https://github.com/joaotovolli/AI_AGENT_OS/actions/workflows/ci.yml/badge.svg)](https://github.com/joaotovolli/AI_AGENT_OS/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-alpha-orange)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A reusable, self-hosted execution supervisor for **Codex CLI on WSL2**. Define a goal in the
 dashboard, choose a model, and let the worker continue through implementation, verification
 and further attempts. GitHub stores code, instructions and progress.
 
 **Version 0.1.0.** The controller and its automated tests are implemented. The target machine
 must still complete authenticated WSL2 commissioning. The system never claims to be error-free.
+
+## Project status
+
+- **Maturity:** Alpha / active development
+- **Runtime:** WSL2 with Python 3.11+
+- **Verification:** Python 3.11/3.12/3.13 regression suite plus Chromium dashboard workflow
+- **License:** MIT
+
+The project has automated CI and repeatable validation, but the target-host commissioning steps
+in the validation record remain part of deployment readiness.
 
 ## Start here
 
@@ -62,6 +77,9 @@ python3 scripts/check_repository.py
 
 Node is used only for optional local JavaScript syntax checking and by the npm installation of
 Codex CLI. The dashboard itself is served as static HTML, CSS and JavaScript.
+
+Contributions are welcome through focused pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the development checks and [SECURITY.md](SECURITY.md) for security reporting guidance.
 
 Read the [architecture](docs/ARCHITECTURE.md), [validation record](docs/VALIDATION.md),
 [Codex settings](docs/CODEX.md), and [reusable instance guide](docs/REUSE.md).
