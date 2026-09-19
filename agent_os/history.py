@@ -12,12 +12,20 @@ def text(value, limit=600):
 
 
 def diagnostic(work, checks=(), review=None):
+    from .progress import observation_digest
     result = work.get("result", {})
     data = result.get("diagnostic", {})
+    if review and review.get("ok") and review["result"]["status"] != "completed":
+        reviewer = review["result"].get("diagnostic", {})
+        if reviewer.get("blocker_kind") not in (None, "none", "unknown"):
+            data = reviewer
     kind = data.get("blocker_kind", work.get("error_kind", "unknown"))
+    if checks and not all(c["passed"] for c in checks):
+        kind = "technical"
     if kind not in BLOCKERS:
         kind = "unknown"
-    return {"phase": text(data.get("phase", "Unspecified"), 100),
+    return {"evidence_digest": observation_digest(data.get("observations", [])),
+            "next_check_at": data.get("next_check_at", 0), "phase": text(data.get("phase", "Unspecified"), 100),
             "approach_key": text(data.get("approach_key", ""), 100).lower(),
             "approach": text(data.get("approach", "")),
             "completed": text(data.get("completed", "")),

@@ -112,11 +112,25 @@ def make_server(root, port=None):
                 if path == "/api/goals":
                     result = state.add_goal(data.get("title"), data.get("description"), data.get("acceptance"), data.get("commands"))
                     self.respond(201, result)
+                elif path == "/api/guidance":
+                    if set(data) - {"goal_id", "key", "body", "action"} or data.get("action") not in ("set", "clear"):
+                        raise ValueError("Use set or clear with a goal ID, key and guidance text")
+                    if data["action"] == "set" and not isinstance(data.get("body"), str):
+                        raise ValueError("Saving guidance requires instruction text")
+                    result = state.set_guidance(data.get("goal_id"), data.get("key"),
+                                                data.get("body") if data["action"] == "set" else None)
+                    self.respond(200, result)
+                elif path == "/api/watchers/cancel":
+                    if not state.goal(data.get("goal_id")) or not isinstance(data.get("key"), str):
+                        raise ValueError("Select a goal and watcher key")
+                    state.cancel_watcher(data["goal_id"], data["key"])
+                    self.respond(200, {"ok": True})
                 elif path == "/api/settings":
                     # Port changes require reinstalling service links; the dashboard edits execution settings only.
                     allowed = {"model", "reasoning", "fast", "idle_seconds", "step_timeout_seconds",
                                "github_followups", "github_operators", "diagnostic_escalation", "diagnostic_models",
-                               "diagnostic_min_attempts", "diagnostic_cooldown_seconds", "diagnostic_timeout_seconds"}
+                               "diagnostic_min_attempts", "diagnostic_cooldown_seconds", "diagnostic_timeout_seconds",
+                               "external_repeat_limit", "external_wait_min_seconds", "external_wait_max_seconds"}
                     if set(data) - allowed:
                         raise ValueError("These settings must be changed with the installation CLI")
                     was_enabled = config.load(root)["github_followups"]
@@ -128,7 +142,7 @@ def make_server(root, port=None):
                     state.set("failures", 0)
                     for goal in state.goals():
                         if goal["status"] == "waiting":
-                            state.update_goal(goal["id"], next_run=0)
+                            state.wake_goal(goal["id"], "Operator requested a fresh attempt")
                     state.event("settings.updated", f"Execution settings saved: {result['model']} / {result['reasoning']} / Fast {result['fast']}")
                     self.respond(200, result)
                 elif path == "/api/framework":
@@ -148,21 +162,17 @@ def make_server(root, port=None):
                     action = data.get("action")
                     if action in ("pause", "resume"):
                         state.set("paused", action == "pause")
-                        if action == "resume":
-                            for goal in state.goals():
-                                if goal["status"] == "waiting":
-                                    state.update_goal(goal["id"], next_run=0)
                         state.event("operator." + action, "Operator " + action)
                     elif action == "wake":
                         state.set("next_maintenance", 0)
                         for goal in state.goals():
                             if goal["status"] == "waiting":
-                                state.update_goal(goal["id"], next_run=0)
+                                state.wake_goal(goal["id"], "Operator requested a fresh attempt")
                     elif action == "retry":
                         goal = state.goal(data.get("goal_id"))
                         if not goal or goal["status"] not in ("blocked", "waiting"):
                             raise ValueError("Select a blocked or waiting goal")
-                        state.update_goal(goal["id"], status="queued", next_run=0)
+                        state.wake_goal(goal["id"])
                         state.event("operator.retry", "Operator requested another attempt", goal["id"])
                     elif action == "cancel":
                         goal = state.goal(data.get("goal_id"))

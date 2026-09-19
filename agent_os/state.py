@@ -7,6 +7,7 @@ import uuid
 from contextlib import contextmanager
 
 from .config import private_dir
+from .progress import GoalProgress, guidance_command
 
 BOOTSTRAP = """Make this instance operational on its target WSL2 host. Inspect the system,
 fix defects, exercise the dashboard and goal lifecycle, validate the selected Codex model,
@@ -16,7 +17,7 @@ Do not claim perfection. Finish only when the actual readiness checks and indepe
 review pass. Do not weaken tests or acceptance criteria to pass."""
 
 
-class State:
+class State(GoalProgress):
     def __init__(self, root):
         self.root = root
         self.path = private_dir(root) / "state.sqlite3"
@@ -47,6 +48,8 @@ class State:
                 received REAL NOT NULL, acknowledged INTEGER NOT NULL DEFAULT 0,
                 answered INTEGER NOT NULL DEFAULT 0, reply TEXT NOT NULL DEFAULT '');
             """)
+
+            self.init_progress(db)
 
     @contextmanager
     def db(self):
@@ -121,7 +124,11 @@ class State:
             raise ValueError("Invalid goal update")
         updates["updated"] = time.time()
         with self.db() as db:
-            db.execute("UPDATE goals SET " + ",".join(k + "=?" for k in updates) + " WHERE id=?", [*updates.values(), goal_id])
+            changed = db.execute("UPDATE goals SET " + ",".join(k + "=?" for k in updates) +
+                                 " WHERE id=? AND status NOT IN ('completed','cancelled')", [*updates.values(), goal_id]).rowcount
+
+            if changed and updates.get("status") in ("completed", "cancelled"):
+                self.cleanup_progress(db, goal_id)
 
     def select_goal(self, now=None):
         now = time.time() if now is None else now
@@ -168,6 +175,19 @@ class State:
                 (id,repository,issue,comment,author,body,goal_id,received) VALUES (?,?,?,?,?,?,?,?)""",
                 (identity, repository, issue, comment, author, redact(body)[:8000], goal_id,
                  time.time() if received is None else received)).rowcount
+            if inserted:
+                try:
+                    command = guidance_command(body)
+                    if command:
+                        target, item_key, instruction = command
+                        self._guidance(db, target, item_key, instruction, identity)
+                        goal_id = target
+                        db.execute("UPDATE followups SET goal_id=?,status='handled',reply=? WHERE id=?",
+                                   (target, "Persistent guidance " + ("saved: " if instruction else "cleared: ") + item_key, identity))
+                    elif goal_id:
+                        self._wake(db, goal_id, "Authorized operator follow-up received")
+                except ValueError as exc:
+                    db.execute("UPDATE followups SET status='handled',reply=? WHERE id=?", (str(exc), identity))
         if inserted:
             self.event("operator.received", "Authorized GitHub follow-up queued", goal_id)
             self.set("needs_checkpoint", True)
@@ -219,8 +239,11 @@ class State:
     def begin_run(self, goal_id):
         run_id = uuid.uuid4().hex
         with self.db() as db:
+            changed = db.execute("UPDATE goals SET status='running',attempts=attempts+1,updated=? WHERE id=? "
+                                 "AND status IN ('queued','waiting')", (time.time(), goal_id)).rowcount
+            if not changed:
+                return None
             db.execute("INSERT INTO runs (id,goal_id,started,status) VALUES (?,?,?,'running')", (run_id, goal_id, time.time()))
-            db.execute("UPDATE goals SET status='running',attempts=attempts+1,updated=? WHERE id=?", (time.time(), goal_id))
         return run_id
 
     def finish_run(self, run_id, status, result):
@@ -239,7 +262,7 @@ class State:
             self.set("framework", {"status": "attention", "message": "Framework update was interrupted. Inspect source and remote state before retrying."})
 
     def snapshot(self):
-        return {"goals": self.goals(), "events": self.events(),
+        return {"goals": self.goals(), "events": self.events(), "goal_progress": self.progress_snapshot(),
                 "diagnostics": {g["id"]: self.history(g["id"], 1) for g in self.goals()},
                 "followups": self.followup_receipts()[-50:], "operator_channel": self.get("operator_channel", {}),
                 "framework": self.get("framework", {}),

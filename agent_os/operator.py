@@ -92,8 +92,6 @@ class OperatorChannel:
                     self.state.receive_followup(repo, issue, comment["id"], comment["user"]["login"], body, goal_id,
                                                 received=timestamp(comment["created_at"]))
                     known.add(identity)
-                    if goal and goal["status"] in ("waiting", "blocked"):
-                        self.state.update_goal(goal_id, status="queued", next_run=0)
                 cursor["page"] += 1
                 if len(comments) < 100:
                     cursor = {"since": max(enabled, cursor["started"] - 2), "page": 1, "started": now}

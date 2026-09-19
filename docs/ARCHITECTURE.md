@@ -119,3 +119,17 @@ The read-only review is an independent session, not a mathematical proof of corr
 Acceptance commands are explicitly entered by the dashboard operator and run through Bash. New
 incoming GitHub issues do not authorize shell execution. Each instance is isolated by its own
 repository, state and services, but host-level access is shared across instances.
+
+## Goal continuity and conditional waiting (0.3)
+
+Additive `guidance`, `work_items`, `goal_control` and `watchers` tables preserve goal-scoped
+instructions and dependency state. Each new worker prompt receives active guidance and the saved
+work plan separately from one-shot context and immutable acceptance criteria. A context revision
+prevents stale completion after operator guidance or a background event arrives during a turn.
+
+The scheduler runs independent actionable work first. Repeated equivalent external blockers use
+stable observations and persisted bounded backoff. Deterministic background watchers evaluate
+sanitized file, JSON and HTTP predicates with a bounded thread pool, without invoking the model.
+Matching events requeue only the associated waiting work; completion still requires all existing
+gates. Terminal goals deactivate guidance and watchers. Recovery checkpoints include these tables.
+Resume preserves waiting deadlines. See [waiting](WAITING.md) and [operators](OPERATORS.md).

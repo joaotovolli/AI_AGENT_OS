@@ -19,6 +19,10 @@ DEFAULTS.update({
     "diagnostic_min_attempts": 3, "diagnostic_cooldown_seconds": 3600,
     "diagnostic_timeout_seconds": 180, "framework_check_seconds": 86400,
 })
+FEATURE_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS
+DEFAULTS.update({"external_repeat_limit": 3, "external_wait_min_seconds": 900,
+                 "external_wait_max_seconds": 21600})
+PROGRESS_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS - FEATURE_SETTINGS
 _LOCK = threading.RLock()
 
 
@@ -73,7 +77,8 @@ def validate(data):
               "retry_base_seconds": (1, 3600), "retry_max_seconds": (60, 86400),
               "github_progress_seconds": (30, 3600), "diagnostic_min_attempts": (3, 20),
               "diagnostic_cooldown_seconds": (300, 86400), "diagnostic_timeout_seconds": (30, 600),
-              "framework_check_seconds": (3600, 604800)}
+              "framework_check_seconds": (3600, 604800), "external_repeat_limit": (2, 20),
+              "external_wait_min_seconds": (300, 86400), "external_wait_max_seconds": (300, 604800)}
     for key, (low, high) in limits.items():
         if key in data and (type(data[key]) is not int or not low <= data[key] <= high):
             raise ValueError(f"{key} must be an integer from {low} to {high}")
@@ -87,16 +92,25 @@ def load(root):
         features = private_dir(root) / "features.json"
         if features.exists():
             overrides.update(json.loads(features.read_text()))
-        return dict(DEFAULTS, **validate(overrides))
+        progress = private_dir(root) / "progress-settings.json"
+        if progress.exists():
+            overrides.update(json.loads(progress.read_text()))
+        result = dict(DEFAULTS, **validate(overrides))
+        if result["external_wait_min_seconds"] > result["external_wait_max_seconds"]:
+            raise ValueError("External waiting minimum must not exceed its maximum")
+        return result
 
 
 def save(root, updates):
     with _LOCK:
         config = load(root)
         config.update(validate(updates))
+        if config["external_wait_min_seconds"] > config["external_wait_max_seconds"]:
+            raise ValueError("External waiting minimum must not exceed its maximum")
         # Retained pre-feature runtimes reject unknown keys. Keep their configuration readable.
         atomic_json(private_dir(root) / "config.json", {k: v for k, v in config.items() if k in LEGACY_SETTINGS})
-        atomic_json(private_dir(root) / "features.json", {k: v for k, v in config.items() if k not in LEGACY_SETTINGS})
+        atomic_json(private_dir(root) / "features.json", {k: v for k, v in config.items() if k in FEATURE_SETTINGS})
+        atomic_json(private_dir(root) / "progress-settings.json", {k: v for k, v in config.items() if k in PROGRESS_SETTINGS})
         return config
 
 

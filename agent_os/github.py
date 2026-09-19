@@ -60,6 +60,21 @@ class GitHub:
             lines += [f"### {redact(goal['title']).replace(chr(10), ' ')}",
                       f"`{goal['id']}` · {goal['status']} · {goal['progress']}% · attempts: {goal['attempts']}",
                       "", redact(goal["summary"]), ""]
+            progress = snapshot.get("goal_progress", {}).get(goal["id"], {})
+            waiting = progress.get("wait", {})
+            if progress.get("partial"):
+                lines += ["Partially blocked; independent work remains actionable.", ""]
+            if waiting:
+                lines += [waiting["reason"] + ". Next model check: " + utc(waiting["next_run"]) + ".", waiting["wake_on"], ""]
+            for item in progress.get("work_plan", []):
+                lines += [f"- {item['key']}: {item['status']} | {item['title']}"]
+            for item in progress.get("guidance", []):
+                lines += [f"- Active guidance {item['key']} (v{item['version']}): {item['body']}"]
+            for watcher in progress.get("watchers", []):
+                lines += [f"- Watcher {watcher['key']}: {watcher['status']}; last check " +
+                          (utc(watcher['last_check']) if watcher['last_check'] else "pending") +
+                          "; observation " + str(watcher['observation']) +
+                          ("; error " + watcher['error'] if watcher['error'] else "")]
             if self.state.history(goal["id"], 1):
                 lines += [f"[Diagnostic history](docs/history/{goal['id']}/README.md)", ""]
         projects = discover(self.root)
@@ -152,9 +167,10 @@ class GitHub:
                     if goal["kind"] == "bootstrap":
                         snapshot["ready"] = True
         self.root.joinpath("STATUS.md").write_text(self.render(snapshot), encoding="utf-8")
-        public = {"format_version": 2, "repository": repo, "settings": load(self.root),
+        public = {"format_version": 3, "repository": repo, "settings": load(self.root),
                   "checkpoint_at": time.time(), "followup_receipts": self.state.followup_receipts(),
-                  "goals": snapshot["goals"], "ready": snapshot["ready"]}
+                  "goals": snapshot["goals"], "ready": snapshot["ready"],
+                  "goal_progress": self.state.export_progress(completion)}
         # Checkpoint is a recovery aid, never a store for tokens or raw model output.
         public = json.loads(redact(json.dumps(public, ensure_ascii=False)))
         atomic_json(self.root / "state" / "checkpoint.json", public)

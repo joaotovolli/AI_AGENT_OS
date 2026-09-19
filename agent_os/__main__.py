@@ -163,12 +163,13 @@ def main():
         config.save(root, data["settings"])
         for item in data["goals"]:
             state.add_goal(item["title"], item["description"], item["acceptance"], item["commands"], item["kind"], item["id"])
-            status = item["status"] if item["status"] in ("completed", "cancelled") else "queued"
+            status = item["status"] if item["status"] in ("completed", "cancelled", "blocked", "waiting") else "queued"
             if item["kind"] == "bootstrap":
                 status = "queued"  # A recovered host must prove readiness again.
-            state.update_goal(item["id"], status=status, attempts=item["attempts"], progress=min(item["progress"], 99) if status == "queued" else item["progress"], summary=item["summary"])
+            state.update_goal(item["id"], status=status, attempts=item["attempts"], progress=min(item["progress"], 99) if status == "queued" else item["progress"], summary=item["summary"], next_run=item.get("next_run", 0) if status == "waiting" else 0)
         state.set("ready", False)
         history.restore(root, state)
+        state.restore_progress(data.get("goal_progress", {}))
         pending = []
         for receipt in data.get("followup_receipts", []):
             if receipt["status"] != "handled":
