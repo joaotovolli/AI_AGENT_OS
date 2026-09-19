@@ -82,7 +82,7 @@ instances. Target-host commissioning remains an explicit deployment step below.
 Validation date: 2026-09-19. [PR #12](https://github.com/joaotovolli/AI_AGENT_OS/pull/12)
 contains the implementation and its [CI checks](https://github.com/joaotovolli/AI_AGENT_OS/pull/12/checks).
 
-The regression suite contains 103 tests. New coverage includes:
+The regression suite contains 105 tests. New coverage includes:
 
 - One-shot delivery versus persistent goal guidance; replacement, clearing, authorized GitHub
   commands, replay deduplication, restart and checkpoint recovery, and terminal cleanup.
@@ -92,7 +92,7 @@ The regression suite contains 103 tests. New coverage includes:
   preservation of completed work, eventual verified completion and incomplete-plan rejection.
 - Deterministic condition polling without model calls, persistent baselines, backoff, change events,
   errors, expiry, cancellation and stale observations arriving after completion/cancellation.
-- Guidance and watcher events arriving during a turn, preventing stale completion or lost wake-up.
+- Guidance and watcher events arriving during a turn, preventing stale completion or lost wake-up; cancellation wins concurrent selection/publication.
 - Real Git framework integration preserving goals, guidance, work plans, watcher state, settings,
   project files and the previous runtime. Resume keeps external waiting deadlines.
 - Authenticated guidance endpoints with immutable-criteria enforcement. Chromium checks create,

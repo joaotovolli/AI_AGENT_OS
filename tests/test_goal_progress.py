@@ -379,3 +379,28 @@ class WorkerProgressTests(ProgressFixture, unittest.TestCase):
         codex.assert_not_called()
         self.assertEqual(self.state.watchers(self.gid)[0]["observation"], "false")
         self.assertFalse(self.state.get("needs_checkpoint"))
+
+    def test_cancellation_between_selection_and_begin_cannot_start_a_turn(self):
+        def cancel_during_preflight(*_):
+            self.state.update_goal(self.gid, status="cancelled")
+            return True
+        with patch.object(self.worker, "preflight", side_effect=cancel_during_preflight), patch("agent_os.worker.Codex.run") as codex:
+            self.worker.tick()
+        codex.assert_not_called()
+        self.assertEqual(self.state.goal(self.gid)["status"], "cancelled")
+        self.assertIsNone(self.state.begin_run(self.gid))
+        self.state.update_goal(self.gid, status="queued")
+        self.assertEqual(self.state.goal(self.gid)["status"], "cancelled")
+
+    def test_cancelled_goal_cannot_complete_after_publication(self):
+        checkpoint = self.worker.github.checkpoint
+        def cancel_on_checkpoint(message, completion=None):
+            result = checkpoint(message, completion)
+            if completion:
+                self.state.update_goal(self.gid, status="cancelled")
+            return result
+        self.worker.github.checkpoint = cancel_on_checkpoint
+        with patch("agent_os.worker.Codex.run", return_value=success()):
+            self.worker.tick()
+        self.assertEqual(self.state.goal(self.gid)["status"], "cancelled")
+        self.assertIsNone(self.state.get("pending_completion"))

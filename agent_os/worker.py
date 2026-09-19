@@ -213,6 +213,8 @@ Authorized follow-ups:
         if self.cancelled(goal["id"]):
             return
         run_id = self.state.begin_run(goal["id"])
+        if not run_id:
+            return  # A concurrent cancellation or terminal transition wins selection.
         # Disabling intake does not abandon follow-ups already accepted into the durable queue.
         followups = self.state.claim_followups(goal["id"], run_id)
         goal = self.state.goal(goal["id"])
@@ -333,6 +335,11 @@ Verification log: {verification_log}
 
     def finish_completion(self, goal, settings):
         # Completion remains provisional until its exact state is persisted on GitHub.
+        if self.state.goal(goal["id"])["status"] in ("completed", "cancelled"):
+            self.state.set("pending_completion", None)
+            return
+        if self.cancelled(goal["id"]):
+            return
         if (self.github.workspace_digest() != self.state.get("completion_digest") or self.state.pending_followups(goal["id"])
                 or self.state.context_revision(goal["id"]) != self.state.get("completion_revision", 0)
                 or not self.state.plan_complete(goal["id"])):

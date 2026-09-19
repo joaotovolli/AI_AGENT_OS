@@ -124,9 +124,10 @@ class State(GoalProgress):
             raise ValueError("Invalid goal update")
         updates["updated"] = time.time()
         with self.db() as db:
-            db.execute("UPDATE goals SET " + ",".join(k + "=?" for k in updates) + " WHERE id=?", [*updates.values(), goal_id])
+            changed = db.execute("UPDATE goals SET " + ",".join(k + "=?" for k in updates) +
+                                 " WHERE id=? AND status NOT IN ('completed','cancelled')", [*updates.values(), goal_id]).rowcount
 
-            if updates.get("status") in ("completed", "cancelled"):
+            if changed and updates.get("status") in ("completed", "cancelled"):
                 self.cleanup_progress(db, goal_id)
 
     def select_goal(self, now=None):
@@ -238,8 +239,11 @@ class State(GoalProgress):
     def begin_run(self, goal_id):
         run_id = uuid.uuid4().hex
         with self.db() as db:
+            changed = db.execute("UPDATE goals SET status='running',attempts=attempts+1,updated=? WHERE id=? "
+                                 "AND status IN ('queued','waiting')", (time.time(), goal_id)).rowcount
+            if not changed:
+                return None
             db.execute("INSERT INTO runs (id,goal_id,started,status) VALUES (?,?,?,'running')", (run_id, goal_id, time.time()))
-            db.execute("UPDATE goals SET status='running',attempts=attempts+1,updated=? WHERE id=?", (time.time(), goal_id))
         return run_id
 
     def finish_run(self, run_id, status, result):
