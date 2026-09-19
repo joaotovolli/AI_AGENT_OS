@@ -9,7 +9,7 @@ A reusable, self-hosted execution supervisor for **Codex CLI on WSL2**. Define a
 dashboard, choose a model, and let the worker continue through implementation, verification
 and further attempts. GitHub stores code, instructions and progress.
 
-**Version 0.2.0.** The controller and its automated tests are implemented. The target machine
+**Version 0.3.0.** The controller and its automated tests are implemented. The target machine
 must still complete authenticated WSL2 commissioning. The system never claims to be error-free.
 
 ## Project status

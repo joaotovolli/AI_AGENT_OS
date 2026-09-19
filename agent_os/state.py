@@ -180,6 +180,7 @@ class State(GoalProgress):
                     if command:
                         target, item_key, instruction = command
                         self._guidance(db, target, item_key, instruction, identity)
+                        goal_id = target
                         db.execute("UPDATE followups SET goal_id=?,status='handled',reply=? WHERE id=?",
                                    (target, "Persistent guidance " + ("saved: " if instruction else "cleared: ") + item_key, identity))
                     elif goal_id:

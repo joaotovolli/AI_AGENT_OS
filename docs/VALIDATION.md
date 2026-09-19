@@ -77,6 +77,35 @@ consultation, operate a real instance through status comments, apply an update t
 installation or prove provider entitlement. The public base change does not modify existing
 instances. Target-host commissioning remains an explicit deployment step below.
 
+## Version 0.3: persistent guidance and productive waiting
+
+Validation date: 2026-09-19. [PR #12](https://github.com/joaotovolli/AI_AGENT_OS/pull/12)
+contains the implementation and its [CI checks](https://github.com/joaotovolli/AI_AGENT_OS/pull/12/checks).
+
+The regression suite contains 103 tests. New coverage includes:
+
+- One-shot delivery versus persistent goal guidance; replacement, clearing, authorized GitHub
+  commands, replay deduplication, restart and checkpoint recovery, and terminal cleanup.
+- Stable observation digests, timestamp/percentage exclusion, changed evidence and approaches,
+  bounded external backoff, useful-check deadlines and explicit operator wake-up.
+- Mixed actionable, externally waiting, operator-dependent and verified work; dependency ordering,
+  preservation of completed work, eventual verified completion and incomplete-plan rejection.
+- Deterministic condition polling without model calls, persistent baselines, backoff, change events,
+  errors, expiry, cancellation and stale observations arriving after completion/cancellation.
+- Guidance and watcher events arriving during a turn, preventing stale completion or lost wake-up.
+- Real Git framework integration preserving goals, guidance, work plans, watcher state, settings,
+  project files and the previous runtime. Resume keeps external waiting deadlines.
+- Authenticated guidance endpoints with immutable-criteria enforcement. Chromium checks create,
+  replace, reload and clear guidance, and verify that refresh does not erase an unfinished draft.
+
+The initial candidate passed the three-version Python matrix and Chromium desktop/mobile workflow
+in [run 35473272636](https://github.com/joaotovolli/AI_AGENT_OS/actions/runs/35473272636).
+Final results for subsequent commits are attached to the PR checks. Model outputs, provider APIs
+and remote publication failures are controlled fixtures; real local Git repositories and HTTP
+dashboard requests exercise integration. No target-host update or authenticated model turn is
+claimed by these tests. Apply the validated base update on the target instance and inspect its
+project health before resuming, following [the update guide](FRAMEWORK_UPDATES.md).
+
 ## Required WSL2 commissioning
 
 These checks remain pending until the installation prompt is executed on the target host:

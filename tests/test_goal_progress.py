@@ -331,3 +331,51 @@ class WorkerProgressTests(ProgressFixture, unittest.TestCase):
         self.assertEqual(validate_result(result), result)
         with self.assertRaises(ValueError):
             validate_result(dict(result, watchers=[watcher(interval_seconds=0)]))
+
+    def test_background_event_during_turn_cannot_be_overwritten_by_stale_plan(self):
+        self.state.save_work_plan(self.gid, [item()])
+        self.state.register_watcher(self.gid, watcher())
+        original = self.state.watchers(self.gid)[0]
+        def run(*_):
+            self.worker.watchers.record(original, value="true")
+            work = success("continue")
+            work["result"]["work_plan"] = [item()]
+            return work
+        with patch("agent_os.worker.Codex.run", side_effect=run):
+            self.worker.tick()
+        self.assertEqual(self.state.goal(self.gid)["status"], "queued")
+        self.assertEqual(self.state.work_plan(self.gid)[0]["status"], "actionable")
+
+    def test_operator_prerequisite_stops_dependent_work_without_repeat_turns(self):
+        work = success("blocked")
+        work["result"].update(work_plan=[item(status="needs_input"), item("docs", "actionable", ["verify"])])
+        with patch("agent_os.worker.Codex.run", return_value=work) as codex:
+            self.worker.tick()
+            self.worker.tick()
+        self.assertEqual(codex.call_count, 1)
+        self.assertEqual(self.state.goal(self.gid)["status"], "blocked")
+
+    def test_local_independent_work_can_continue_while_one_item_needs_credentials(self):
+        work = success("blocked")
+        work["result"].update(diagnostic=diagnostic(blocker_kind="authentication"),
+                              work_plan=[item(status="needs_input"), item("docs", "actionable")])
+        with patch("agent_os.worker.Codex.run", return_value=work):
+            self.worker.tick()
+        self.assertEqual(self.state.goal(self.gid)["status"], "waiting")
+        self.assertLess(self.state.goal(self.gid)["next_run"], time.time()+3)
+
+    def test_background_polling_while_waiting_does_not_invoke_model(self):
+        self.state.save_work_plan(self.gid, [item()])
+        self.state.register_watcher(self.gid, watcher())
+        self.state.update_goal(self.gid, status="waiting", next_run=time.time()+10000)
+        self.state.set("needs_checkpoint", False)
+        with patch("agent_os.watchers.observe", return_value="false") as probe, patch("agent_os.worker.Codex.run") as codex:
+            self.worker.tick()
+            for future, _ in self.worker.watchers.pending.values():
+                future.result(timeout=2)
+            self.worker.last_beat = 0
+            self.worker.tick()
+        probe.assert_called_once()
+        codex.assert_not_called()
+        self.assertEqual(self.state.watchers(self.gid)[0]["observation"], "false")
+        self.assertFalse(self.state.get("needs_checkpoint"))

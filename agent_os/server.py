@@ -115,6 +115,8 @@ def make_server(root, port=None):
                 elif path == "/api/guidance":
                     if set(data) - {"goal_id", "key", "body", "action"} or data.get("action") not in ("set", "clear"):
                         raise ValueError("Use set or clear with a goal ID, key and guidance text")
+                    if data["action"] == "set" and not isinstance(data.get("body"), str):
+                        raise ValueError("Saving guidance requires instruction text")
                     result = state.set_guidance(data.get("goal_id"), data.get("key"),
                                                 data.get("body") if data["action"] == "set" else None)
                     self.respond(200, result)

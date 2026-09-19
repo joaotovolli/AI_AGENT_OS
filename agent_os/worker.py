@@ -301,15 +301,15 @@ Verification log: {verification_log}
             plan = self.state.work_plan(goal["id"])
             if context_changed:
                 self.state.update_goal(goal["id"], status="queued", next_run=0)
-            elif diagnostic["blocker_kind"] in ("authentication", "configuration") or (
-                    diagnostic["blocker_kind"] == "operator" and not actionable):
+            elif (diagnostic["blocker_kind"] in ("operator", "authentication", "configuration") and not actionable) or (
+                    not work["ok"] and diagnostic["blocker_kind"] in ("authentication", "configuration")):
                 self.state.update_goal(goal["id"], status="blocked", next_run=0)
                 event("operator.required", diagnostic["blocker"] or diagnostic["next_action"])
             elif actionable and work["ok"]:
                 self.state.clear_wait(goal["id"])
                 self.state.update_goal(goal["id"], status="waiting", next_run=time.time()+2)
-            elif plan and not self.state.plan_complete(goal["id"]) and all(
-                    i["status"] in ("verified", "needs_input") for i in plan):
+            elif plan and not actionable and any(i["status"] == "needs_input" for i in plan) and not any(
+                    i["status"] == "waiting" for i in plan):
                 self.state.update_goal(goal["id"], status="blocked", next_run=0)
             else:
                 external = diagnostic["blocker_kind"] == "external" or (
