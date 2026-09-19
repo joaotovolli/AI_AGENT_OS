@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-agent-os"
-version = "0.2.0"
+version = "0.3.0"
 description = "A persistent Codex execution supervisor and local dashboard for WSL2"
 requires-python = ">=3.11"
 dependencies = []

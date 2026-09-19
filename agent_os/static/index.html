@@ -34,6 +34,15 @@
       <div class="section-head"><div><p class="eyebrow">WORK QUEUE</p><h2>Goals</h2></div><div class="actions"><button id="wake" class="secondary">Run now</button><button id="pause" class="secondary">Pause</button><a href="#new-goal" class="button primary">+ New goal</a></div></div>
       <div id="goals" aria-live="polite"></div>
     </section>
+    <section class="panel" id="guidance-panel"><p class="eyebrow">OPERATOR GUIDANCE</p><h2>Instructions for later attempts</h2>
+      <p class="muted">Guidance stays active for this goal until you replace or clear it. Saving the same key replaces its text. Acceptance criteria, model settings and required approvals stay in force.</p>
+      <form id="guidance-form">
+        <label for="guidance-goal">Goal</label><select id="guidance-goal" required></select>
+        <label for="guidance-key">Instruction key</label><input id="guidance-key" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_.-]{0,63}" placeholder="verification-approach" required>
+        <label for="guidance-body">Persistent instruction</label><textarea id="guidance-body" maxlength="4000" rows="3" required></textarea>
+        <button type="submit" class="primary">Save guidance</button>
+      </form>
+    </section>
     <section class="panel" id="projects-panel"><p class="eyebrow">BUILT BY YOUR AGENT</p><h2>Projects</h2><p class="muted">Open each project in its own interface. This console manages goals and execution.</p><div id="projects"></div></section>
     <div class="columns">
       <section class="panel" id="new-goal"><p class="eyebrow">NEXT OBJECTIVE</p><h2>What shall we build?</h2>

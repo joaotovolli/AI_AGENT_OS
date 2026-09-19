@@ -38,3 +38,33 @@ in the instance's access instructions, then request **Retry goal** or post a non
 If all local state is lost, `restore` imports handled receipts and re-fetches pending comments
 subject to current authorization. A comment deleted before recovery cannot be reconstructed;
 post a new non-secret clarification if it is still needed. See [recovery](RECOVERY.md).
+
+## Persistent goal guidance
+
+Ordinary authorized comments remain one-shot follow-ups. To retain an instruction for every later
+attempt, use the dashboard's **Instructions for later attempts** form or an explicit status-issue
+command. Copy the goal ID shown in its status entry:
+
+```text
+/guide <goal-id> verification-method
+Wait for the service health event. Continue independent documentation work in the meantime.
+```
+
+Reuse the same key to replace its text and increment its version. Clear it with:
+
+```text
+/guide-clear <goal-id> verification-method
+```
+
+Only currently authorized operators in the opt-in status-issue channel can use these commands.
+The target must be an existing active goal. Receipt and guidance changes commit atomically, so
+replayed comments cannot duplicate a guidance update after a crash. Invalid commands receive an
+explanation and do not become ordinary model instructions. Guidance updates wake a waiting goal
+but preserve global pause, immutable criteria, authentication and application approval requirements.
+They cannot mutate controller/model settings. The dashboard and status output show active guidance;
+the diagnostic history records replacement and clearing. Completion/cancellation deactivates it.
+
+New context arriving during a turn or completion publication invalidates that turn's completion
+claim. A later attempt receives the current instruction. Existing handled one-shot comments are
+not retrospectively converted to permanent policy on upgrade; save important ongoing instructions
+explicitly. See [work plans and waiting](WAITING.md).

@@ -7,6 +7,7 @@ import uuid
 from contextlib import contextmanager
 
 from .config import private_dir
+from .progress import GoalProgress, guidance_command
 
 BOOTSTRAP = """Make this instance operational on its target WSL2 host. Inspect the system,
 fix defects, exercise the dashboard and goal lifecycle, validate the selected Codex model,
@@ -16,7 +17,7 @@ Do not claim perfection. Finish only when the actual readiness checks and indepe
 review pass. Do not weaken tests or acceptance criteria to pass."""
 
 
-class State:
+class State(GoalProgress):
     def __init__(self, root):
         self.root = root
         self.path = private_dir(root) / "state.sqlite3"
@@ -47,6 +48,8 @@ class State:
                 received REAL NOT NULL, acknowledged INTEGER NOT NULL DEFAULT 0,
                 answered INTEGER NOT NULL DEFAULT 0, reply TEXT NOT NULL DEFAULT '');
             """)
+
+            self.init_progress(db)
 
     @contextmanager
     def db(self):
@@ -123,6 +126,9 @@ class State:
         with self.db() as db:
             db.execute("UPDATE goals SET " + ",".join(k + "=?" for k in updates) + " WHERE id=?", [*updates.values(), goal_id])
 
+            if updates.get("status") in ("completed", "cancelled"):
+                self.cleanup_progress(db, goal_id)
+
     def select_goal(self, now=None):
         now = time.time() if now is None else now
         goals = self.goals()
@@ -168,6 +174,18 @@ class State:
                 (id,repository,issue,comment,author,body,goal_id,received) VALUES (?,?,?,?,?,?,?,?)""",
                 (identity, repository, issue, comment, author, redact(body)[:8000], goal_id,
                  time.time() if received is None else received)).rowcount
+            if inserted:
+                try:
+                    command = guidance_command(body)
+                    if command:
+                        target, item_key, instruction = command
+                        self._guidance(db, target, item_key, instruction, identity)
+                        db.execute("UPDATE followups SET goal_id=?,status='handled',reply=? WHERE id=?",
+                                   (target, "Persistent guidance " + ("saved: " if instruction else "cleared: ") + item_key, identity))
+                    elif goal_id:
+                        self._wake(db, goal_id, "Authorized operator follow-up received")
+                except ValueError as exc:
+                    db.execute("UPDATE followups SET status='handled',reply=? WHERE id=?", (str(exc), identity))
         if inserted:
             self.event("operator.received", "Authorized GitHub follow-up queued", goal_id)
             self.set("needs_checkpoint", True)
@@ -239,7 +257,7 @@ class State:
             self.set("framework", {"status": "attention", "message": "Framework update was interrupted. Inspect source and remote state before retrying."})
 
     def snapshot(self):
-        return {"goals": self.goals(), "events": self.events(),
+        return {"goals": self.goals(), "events": self.events(), "goal_progress": self.progress_snapshot(),
                 "diagnostics": {g["id"]: self.history(g["id"], 1) for g in self.goals()},
                 "followups": self.followup_receipts()[-50:], "operator_channel": self.get("operator_channel", {}),
                 "framework": self.get("framework", {}),

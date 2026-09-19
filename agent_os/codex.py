@@ -10,6 +10,8 @@ from .config import atomic_json, private_dir
 from .process import terminate
 from .redact import redact
 from .history import BLOCKERS
+from .progress import WORK_STATES, validate_plan
+from .watchers import KINDS, validate_spec
 
 DIAGNOSTIC = {"type": "object", "additionalProperties": False,
               "properties": {k: {"type": "string"} for k in
@@ -17,6 +19,24 @@ DIAGNOSTIC = {"type": "object", "additionalProperties": False,
 DIAGNOSTIC["properties"].update({"progress_made": {"type": "boolean"},
                                  "blocker_kind": {"type": "string", "enum": list(BLOCKERS)}})
 DIAGNOSTIC["required"] = list(DIAGNOSTIC["properties"])
+LEGACY_DIAGNOSTIC = frozenset(DIAGNOSTIC["required"])
+DIAGNOSTIC["properties"].update({
+    "observations": {"type": "array", "items": {"type": "object", "additionalProperties": False,
+                     "properties": {"key": {"type": "string"}, "value": {"type": "string"}}, "required": ["key", "value"]}},
+    "next_check_at": {"type": "number"},
+})
+DIAGNOSTIC["required"] = list(DIAGNOSTIC["properties"])
+WORK_ITEM = {"type": "object", "additionalProperties": False,
+             "properties": {k: {"type": "string"} for k in ("key", "title", "criterion", "blocker_key", "evidence")}}
+WORK_ITEM["properties"].update({"status": {"type": "string", "enum": list(WORK_STATES)},
+                                  "depends_on": {"type": "array", "items": {"type": "string"}}})
+WORK_ITEM["required"] = list(WORK_ITEM["properties"])
+WATCHER = {"type": "object", "additionalProperties": False,
+           "properties": {k: {"type": "string"} for k in ("key", "work_key", "path", "url", "field", "expected")}}
+WATCHER["properties"].update({"kind": {"type": "string", "enum": list(KINDS)},
+                                "predicate": {"type": "string", "enum": ["equals", "changed"]},
+                                "interval_seconds": {"type": "integer"}, "lifetime_seconds": {"type": "integer"}})
+WATCHER["required"] = list(WATCHER["properties"])
 
 SCHEMA = {
     "type": "object", "additionalProperties": False,
@@ -28,8 +48,10 @@ SCHEMA = {
         "next_action": {"type": "string"},
         "diagnostic": DIAGNOSTIC,
         "operator_reply": {"type": "string"},
+        "work_plan": {"type": "array", "items": WORK_ITEM},
+        "watchers": {"type": "array", "items": WATCHER},
     },
-    "required": ["status", "summary", "progress", "evidence", "next_action", "diagnostic", "operator_reply"],
+    "required": ["status", "summary", "progress", "evidence", "next_action", "diagnostic", "operator_reply", "work_plan", "watchers"],
 }
 
 
@@ -49,12 +71,27 @@ def validate_result(data):
         raise ValueError("Invalid operator reply")
     if "diagnostic" in data:
         value = data["diagnostic"]
-        if not isinstance(value, dict) or set(value) != set(DIAGNOSTIC["required"]):
+        if not isinstance(value, dict) or not LEGACY_DIAGNOSTIC <= set(value) or set(value) - set(DIAGNOSTIC["required"]):
             raise ValueError("Invalid diagnostic fields")
         if type(value["progress_made"]) is not bool or value["blocker_kind"] not in BLOCKERS:
             raise ValueError("Invalid diagnostic classification")
-        if any(not isinstance(v, str) or len(v) > 2000 for k, v in value.items() if k != "progress_made"):
+        if any(not isinstance(v, str) or len(v) > 2000 for k, v in value.items() if k in LEGACY_DIAGNOSTIC - {"progress_made"}):
             raise ValueError("Invalid diagnostic text")
+        observations = value.get("observations", [])
+        if not isinstance(observations, list) or len(observations) > 30 or any(
+                not isinstance(o, dict) or set(o) != {"key", "value"} or
+                any(not isinstance(v, str) or len(v) > 1000 for v in o.values()) for o in observations):
+            raise ValueError("Invalid stable observations")
+        import math
+        next_check = value.get("next_check_at", 0)
+        if type(next_check) not in (int, float) or not math.isfinite(next_check) or next_check < 0:
+            raise ValueError("Invalid next useful check time")
+    validate_plan(data.get("work_plan", []))
+    watchers = data.get("watchers", [])
+    if not isinstance(watchers, list) or len(watchers) > 10:
+        raise ValueError("Invalid watchers")
+    for watcher in watchers:
+        validate_spec(watcher)
     return data
 
 

@@ -144,3 +144,15 @@ class OperatorTests(unittest.TestCase):
         self.assertEqual(self.state.goal(self.goal["id"])["status"], "queued")
         self.assertNotIn(secret, self.state.followups()[0]["body"])
         self.assertNotIn("body", self.state.followup_receipts()[0])
+
+    def test_persistent_commands_share_authorization_and_atomic_receipts(self):
+        command_body = f"/guide {self.goal['id']} method\nUse the service event"
+        self.github.comments = [comment(1, "outsider", 9, body=command_body), comment(2, body=command_body)]
+        self.poll()
+        self.assertEqual(len(self.state.guidance(self.goal["id"])), 1)
+        self.assertEqual(self.state.guidance(self.goal["id"])[0]["version"], 1)
+        self.assertEqual(len(self.github.posts), 2)
+        self.state = State(self.root)
+        self.poll()
+        self.assertEqual(self.state.guidance(self.goal["id"])[0]["version"], 1)
+        self.assertEqual(self.state.goal(self.goal["id"])["acceptance"], "Evidence")

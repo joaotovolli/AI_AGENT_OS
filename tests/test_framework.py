@@ -182,3 +182,24 @@ class FrameworkTests(unittest.TestCase):
         with patch("agent_os.framework.checks.verify", side_effect=resume), self.assertRaisesRegex(RuntimeError, "changed"):
             self.updater.apply(target)
         self.assert_untouched(head)
+
+    def test_update_preserves_guidance_waiting_work_and_background_watchers(self):
+        from test_goal_progress import item, watcher
+        self.state.set_guidance(self.goal["id"], "method", "Wait for the service event")
+        self.state.save_work_plan(self.goal["id"], [item(), item("docs", "verified")])
+        self.state.register_watcher(self.goal["id"], watcher())
+        self.state.schedule_external(self.goal["id"], {}, config.DEFAULTS)
+        self.state.update_goal(self.goal["id"], status="waiting", next_run=9999999999)
+        self.state.note(self.goal["id"], "earlier", "attempt", {"summary": "Independent documentation verified"})
+        before = self.state.export_progress()
+        goal_before = self.state.goal(self.goal["id"])
+        target = self.change(**{"agent_os/__init__.py": "VERSION = 2\n"})
+        self.updater.apply(target)
+        reloaded = State(self.root)
+        reloaded.recover()
+        self.assertEqual(reloaded.export_progress(), before)
+        self.assertEqual(reloaded.goal(self.goal["id"]), goal_before)
+        self.assertEqual(reloaded.history(self.goal["id"])[0]["kind"], "guidance")
+        self.assertEqual(config.load(self.root), self.settings)
+        self.assertTrue(reloaded.get("paused"))
+        self.assertEqual((self.root/"workspace/project.txt").read_text(), "Instance project\n")

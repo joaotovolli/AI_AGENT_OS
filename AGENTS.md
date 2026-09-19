@@ -50,6 +50,9 @@ selectable Codex model/reasoning/Fast, persistent goal attempts, and hourly idle
 - Use `docs/FRAMEWORK_UPDATES.md` for base updates. Preserve provenance, instance records and
   project work; test and publish a candidate before activation. Never resolve conflicts by
   discarding instance changes or blindly replacing source.
+- Read `docs/WAITING.md` for work plans and condition watchers. Preserve active goal guidance,
+  prioritize independent actionable work and keep verified evidence. Unchanged external conditions
+  belong in deterministic background watchers; do not repeatedly spend model turns polling them.
 - Self-improvement must address a concrete defect or measurable usability/reliability opportunity.
   A clean health check is a valid idle result; do not manufacture changes for activity statistics.
 

@@ -118,3 +118,26 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.request("/api/framework", {"action": "apply", "commit": "a"*40})[0], 202)
         self.assertEqual(state.get("framework_request")["commit"], "a"*40)
         self.assertEqual(self.request("/api/framework", {"action": "check"})[0], 400)
+
+    def test_persistent_guidance_api_auth_replacement_and_immutable_criteria(self):
+        state = State(self.root)
+        goal = state.add_goal("Goal", "Work", "Original criteria")
+        data = {"action": "set", "goal_id": goal["id"], "key": "method", "body": "Use the health endpoint"}
+        self.assertEqual(self.request("/api/guidance", data, auth=False)[0], 401)
+        self.assertEqual(self.request("/api/guidance", dict(data, acceptance="Changed"))[0], 400)
+        self.assertEqual(self.request("/api/guidance", data)[0], 200)
+        self.assertEqual(self.request("/api/guidance", dict(data, body="Use the state file"))[1][0]["version"], 2)
+        self.assertEqual(state.goal(goal["id"])["acceptance"], "Original criteria")
+        snapshot = self.request("/api/state")[1]
+        self.assertEqual(snapshot["goal_progress"][goal["id"]]["guidance"][0]["body"], "Use the state file")
+        self.assertEqual(self.request("/api/guidance", dict(data, action="clear"))[1], [])
+
+    def test_resume_after_update_preserves_external_deadline(self):
+        state = State(self.root)
+        goal = state.add_goal("Goal", "Work", "Original criteria")
+        state.update_goal(goal["id"], status="waiting", next_run=9999999999)
+        state.set("paused", True)
+        self.request("/api/control", {"action": "resume"})
+        self.assertEqual(state.goal(goal["id"])["next_run"], 9999999999)
+        self.request("/api/control", {"action": "retry", "goal_id": goal["id"]})
+        self.assertEqual(state.goal(goal["id"])["next_run"], 0)

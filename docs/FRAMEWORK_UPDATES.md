@@ -74,3 +74,33 @@ the same wrapper with `framework check` and `framework apply --commit <reported-
 If the older instance changed core code, integration may stop on conflicts; resolve these with
 evidence, preserving its project work. After successful activation, start its services and review
 before resuming. No existing instance is modified merely by updating the public base repository.
+
+## Upgrading a running 0.2 instance to 0.3
+
+Publish the update to the base first. In the instance, **Check for updates** discovers the available
+base commit. **Apply validated update** is the separate explicit action that automatically prepares,
+merges, tests, publishes and activates it after the worker is paused. Checking alone never deploys
+code. No manual copying of source files is required for a clean integration.
+
+The 0.2 updater can install this release: database additions are created when the new runtime
+starts, and existing goals, follow-up receipts, attempt history, model settings and projects stay
+in place. There are no destructive schema migrations or new goal status strings. New waiting
+settings use a separate file that older retained runtimes ignore. A rollback retains the new
+SQLite tables but does not implement the new guidance/watcher behavior; keep the worker paused
+until the desired runtime is restored and inspected.
+
+Pause interrupts the active bounded Codex attempt and retains its work. The dashboard stays
+available during candidate validation and restarts briefly for runtime activation. Separate project
+services are not restarted by the framework updater and can continue operating. This is not a
+zero-downtime guarantee for services coupled to the control runtime or applications with their own
+update procedures. Check the instance's project health after activation, then resume the worker.
+
+Resume preserves external waiting deadlines, verified work and condition watcher state. Use Retry
+if immediate reassessment is required. Existing one-shot comments remain one-shot; save ongoing
+instructions explicitly as persistent guidance. The first new attempt can derive a work plan from
+the original criteria and existing evidence without restarting the project.
+
+Local tests cover real Git integration and preservation of goals, guidance, waiting state, watcher
+observations, settings and project files. They cannot prove that every customized live instance will
+merge cleanly. A conflict or candidate-test failure must leave the previous source/runtime available
+and report the exact issue. Never resolve a conflict by replacing the instance's project code.

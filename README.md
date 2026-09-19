@@ -97,3 +97,11 @@ explicitly; publishing a new base version does not change a running instance.
 The [initial CI run](https://github.com/joaotovolli/AI_AGENT_OS/actions/runs/34696972138) passed
 36 tests on Python 3.11/3.12/3.13 and a real Chromium dashboard workflow on desktop and mobile
 viewports. The browser job uses Playwright as a development-only dependency.
+
+## Goal continuity
+
+Version 0.3 adds [persistent operator guidance](docs/OPERATORS.md), a saved work plan for partially
+blocked goals, bounded retries for unchanged external dependencies and [background condition
+watchers](docs/WAITING.md). Independent tasks can advance while a deterministic watcher waits
+without using model turns. Existing instances use the [validated update flow](docs/FRAMEWORK_UPDATES.md);
+checking for updates and applying an update remain distinct actions.

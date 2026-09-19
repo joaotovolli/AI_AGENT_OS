@@ -13,7 +13,7 @@ if (fragment.has('token')) {
   localStorage.setItem('agent-os-access', access);
   history.replaceState(null, '', location.pathname);
 }
-const friendly = {queued:'Queued',running:'Working',waiting:'Retrying',blocked:'Needs input',completed:'Completed',cancelled:'Cancelled'};
+const friendly = {queued:'Queued',running:'Working',waiting:'Waiting',blocked:'Needs input',completed:'Completed',cancelled:'Cancelled'};
 function node(tag, text, className) {
   const el = document.createElement(tag); if (text !== undefined) el.textContent = text;
   if (className) el.className = className; return el;
@@ -57,7 +57,16 @@ function paint(data) {
     content.append(node('h3',g.title),node('p',g.summary||g.description,'goal-summary'));
     const meta=node('div',undefined,'goal-meta');meta.append(node('span',friendly[g.status]||g.status,'badge '+g.status),node('span','Attempt '+g.attempts),node('span',g.kind==='bootstrap'?'Setup':g.kind==='maintenance'?'Maintenance':'Goal'));
     if(g.status==='waiting'&&g.next_run>Date.now()/1000)meta.append(node('span','Resumes: '+time(g.next_run)));
+    const tracking=data.goal_progress?.[g.id]||{};
+    if(tracking.partial)meta.append(node('span','Partially blocked','badge'));
     content.append(meta);side.append(node('strong',g.progress+'%'));
+    if(tracking.wait?.reason)content.append(node('p',tracking.wait.reason+'. '+tracking.wait.wake_on,'goal-summary'));
+    for(const item of tracking.work_plan||[])content.append(node('p',item.key+' · '+item.status+' · '+item.title+(item.evidence?' · '+item.evidence:''),'work-item'));
+    for(const item of tracking.guidance||[]){const line=node('div',undefined,'guidance-item');line.append(node('p','Guidance '+item.key+' (v'+item.version+'): '+item.body));
+      const edit=node('button','Edit guidance','secondary');edit.onclick=()=>{$('guidance-goal').value=g.id;$('guidance-key').value=item.key;$('guidance-body').value=item.body;$('guidance-body').focus();};
+      const clear=node('button','Clear guidance','secondary');clear.onclick=()=>action('/api/guidance',{action:'clear',goal_id:g.id,key:item.key});line.append(edit,clear);content.append(line);}
+    for(const watcher of tracking.watchers||[]){const line=node('div',undefined,'watcher-item');line.append(node('p','Watcher '+watcher.key+' · '+watcher.status+' · Last check: '+time(watcher.last_check)+' · State: '+(watcher.observation??'unobserved')+(watcher.error?' · '+watcher.error:'')));
+      if(watcher.status==='active'){const cancel=node('button','Cancel watcher','secondary');cancel.onclick=()=>action('/api/watchers/cancel',{goal_id:g.id,key:watcher.key});line.append(cancel);}content.append(line);}
     row.dataset.goalId=g.id;
     const latest=data.diagnostics?.[g.id]?.[0]?.data;
     if(latest)content.append(node('p',[latest.phase,latest.blocker||latest.completed,latest.next_action].filter(Boolean).join(' · '),'goal-summary'));
@@ -74,6 +83,11 @@ function paint(data) {
     if(g.kind!=='bootstrap'&&!['completed','cancelled'].includes(g.status)){const cancel=node('button','Cancel','cancel');cancel.onclick=()=>action('/api/control',{action:'cancel',goal_id:g.id});side.append(cancel);}
     row.append(content,side);$('goals').append(row);
   }
+  const eligible=data.goals.filter(g=>!['completed','cancelled'].includes(g.status));
+  const selector=$('guidance-goal'), previous=selector.value;
+  const optionState=JSON.stringify(eligible.map(g=>[g.id,g.title]));
+  if(selector.dataset.options!==optionState){selector.replaceChildren(...eligible.map(g=>{const option=node('option',g.title);option.value=g.id;return option;}));selector.dataset.options=optionState;if(eligible.some(g=>g.id===previous))selector.value=previous;}
+  $('guidance-form').querySelector('button').disabled=!eligible.length;
   $('projects').replaceChildren();
   for(const project of data.projects||[]){const card=node('article',undefined,'project-card');card.append(node('h3',project.name),node('p',project.description||project.path),node('small',project.status||'building'));
     if(project.url){const link=node('a','Open project ↗','button secondary');link.href=project.url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}else card.append(node('code',project.path));$('projects').append(card);}
@@ -102,6 +116,7 @@ $('pause').onclick=()=>action('/api/control',{action:snapshot?.paused?'resume':'
 $('wake').onclick=()=>action('/api/control',{action:'wake'});
 $('goal-form').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"]');button.disabled=true;
   try {if(await action('/api/goals',{title:$('goal-title').value,description:$('goal-description').value,acceptance:$('goal-acceptance').value,commands:$('goal-commands').value.split('\n').map(x=>x.trim()).filter(Boolean)}))e.target.reset();}finally{button.disabled=false;}};
+$('guidance-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/guidance',{action:'set',goal_id:$('guidance-goal').value,key:$('guidance-key').value.trim(),body:$('guidance-body').value})){$('guidance-key').value='';$('guidance-body').value='';}};
 $('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked,diagnostic_escalation:$('diagnostic-escalation').checked,github_followups:$('github-followups').checked,github_operators:$('github-operators').value.split(',').map(s=>s.trim()).filter(Boolean),diagnostic_models:$('diagnostic-models').value.split('\n').filter(s=>s.trim()).map(s=>{const parts=s.trim().split(/\s+/);return {model:parts[0],reasoning:parts.slice(1).join(' ')};})}))notice('Settings saved. They will apply to the next attempt.');};
 $('framework-check').onclick=()=>action('/api/framework',{action:'check'});
 $('framework-apply').onclick=()=>action('/api/framework',{action:'apply',commit:snapshot?.framework?.target_commit});
