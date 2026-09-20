@@ -1,3 +1,3 @@
 """AI Agent OS: persistent, GitHub-backed Codex orchestration."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

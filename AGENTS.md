@@ -46,7 +46,10 @@ selectable Codex model/reasoning/Fast, persistent goal attempts, and hourly idle
   model preferences. Old verified runtime code must remain available for recovery.
 - Maintain concise per-goal operational history with stable blocker/approach keys, meaningful
   milestones and honest dependency classification. No raw transcripts or reasoning traces. Read
-  `docs/DIAGNOSTICS.md`; optional advisor calls never replace the configured worker.
+  `docs/DIAGNOSTICS.md`; advisory calls are read-only and the configured worker retains goal ownership. Read
+  `docs/STRATEGY.md`; require source-backed strategic decisions, distinct experiments and explicit
+  cost/value assessment before escalation. Optional scoped execution is one bounded subproblem
+  after useful advice and trials; normal ownership then returns to the configured worker.
 - Use `docs/FRAMEWORK_UPDATES.md` for base updates. Preserve provenance, instance records and
   project work; test and publish a candidate before activation. Never resolve conflicts by
   discarding instance changes or blindly replacing source.

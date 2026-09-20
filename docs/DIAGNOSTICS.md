@@ -20,32 +20,31 @@ the normal worker's model, reasoning or Fast settings. A separate read-only Code
 analyze one recurring technical blocker and return a different approach to that worker.
 Normal implementation and completion review stay in the regular goal lifecycle.
 
-The initial conservative trigger requires at least three attempts against the same technical
-blocker, three distinct approach keys, no reported meaningful progress and no changed completed
-milestone. More attempts can be required using `diagnostic_min_attempts`. A new blocker or real
-progress resets the window. Stable keys and summaries are supplied by the worker: they are
-observable heuristics, not proof that two methods differ semantically. Incorrect classification
-should be corrected through operator context and evidence.
+Read [strategic execution](STRATEGY.md) for the decision contract. The worker must explicitly
+request advice after researching the cause, considering alternatives, trying evidenced approaches
+and assessing exhaustion, clarity and expected value. Attempt counts and diversity are safety floors,
+not triggers. The worker can choose research, a new experiment, preparation or scheduled waiting even
+when historical stall heuristics are present.
 
-Operator, authentication and configuration dependencies enter **Needs input**, preserving queue
-priority and stopping paid attempts until **Retry goal** or an authorized follow-up. An external
-dependency waits at least five minutes; quota failures retain bounded backoff. None triggers
-stronger-model diagnosis. Pause continues to stop all goal execution.
+A consolidated dossier preserves the full goal and acceptance criteria, affected work, verified
+evidence, research, attempts, rejected hypotheses, current diagnosis, uncertainty and previous advice.
+The advisor uses read-only sandboxing, no approval prompts, Standard tier and a 180-second default
+timeout. It can recommend that no further escalation is needed. The base model executes its advice
+with independent judgment and records recommendation trials.
 
-The advisor receives bounded goal context and recent history. It uses read-only sandboxing,
-no approval prompts, Standard service tier and a 180-second timeout by default. It cannot
-implement, approve consequential actions or replace the worker. Reservations are persisted
-before invocation. A one-hour cooldown and fresh distinct attempts prevent immediate repeat
-consultations; duplicate next-action advice is discarded. History records why it ran, the
-recommended direction and subsequent working attempts.
+Reservations are persisted before invocation. A one-hour cooldown, a new request ID, new evidence
+and documented trials of the latest advice gate later consultations. The same advisor may revisit
+a genuinely updated dossier; duplicate next-action advice is discarded. Pause/cancel and changed
+operator context invalidate a stale consultation. Missing access and external timing do not become
+reasons to buy more inference.
 
 ## Selecting an advisor
 
 The dashboard accepts ordered `model-id reasoning` preferences. Designate models you consider
 stronger for diagnosis. Choices must exist in the installed Codex model catalog and explicitly
-support the chosen reasoning level. A preference for the current model requires greater reasoning
-effort. Without preferences, the controller follows explicit catalog upgrade suggestions. It
-does not infer capability from model names or silently try guessed IDs. If no suitable untried
+support the chosen reasoning level. `consult_reasoning` selects the next catalog-supported higher effort for the current model;
+`consult_model` selects a different model. Without preferences, the controller follows explicit catalog upgrade suggestions. It
+does not infer capability from model names or silently try guessed IDs. If no suitable
 candidate is known, history records that limitation and the configured worker stays in control.
 Catalog presence is not proof of live entitlement; actual CLI failures are recorded without
 silently replacing the worker or bypassing provider limits.
@@ -56,9 +55,17 @@ Advanced settings can be changed with `python3 -m agent_os settings --json '<JSO
 | --- | --- | --- |
 | `diagnostic_escalation` | `false` | Explicit permission for advisor calls |
 | `diagnostic_models` | `[]` | Ordered objects containing `model` and `reasoning` |
-| `diagnostic_min_attempts` | `3` | Minimum attempts against one blocker |
+| `diagnostic_min_attempts` | `3` | Evidence safety floor; never an automatic trigger |
 | `diagnostic_cooldown_seconds` | `3600` | Minimum interval between consultations |
 | `diagnostic_timeout_seconds` | `180` | Maximum duration of one consultation |
+
+| `strategic_delegation` | `false` | Additional opt-in for one justified scoped execution turn after useful advice/trials |
+| `delegation_timeout_seconds` | `600` | Maximum duration of that scoped turn |
+
+Scoped execution cannot mark the overall goal complete. Normal ownership resumes afterward.
+The helper's scope is an instruction under the existing full-access account, not a sandbox.
+New delegation preferences live in `.agent-os/strategy-settings.json`, which retained older runtimes
+ignore. Existing preferences are unchanged by updates.
 
 Advisor usage is included in the instance token counter. New feature preferences live in ignored
 `.agent-os/features.json`; original execution settings remain in `.agent-os/config.json` so

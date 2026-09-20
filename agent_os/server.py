@@ -130,6 +130,7 @@ def make_server(root, port=None):
                     allowed = {"model", "reasoning", "fast", "idle_seconds", "step_timeout_seconds",
                                "github_followups", "github_operators", "diagnostic_escalation", "diagnostic_models",
                                "diagnostic_min_attempts", "diagnostic_cooldown_seconds", "diagnostic_timeout_seconds",
+                               "strategic_delegation", "delegation_timeout_seconds",
                                "external_repeat_limit", "external_wait_min_seconds", "external_wait_max_seconds"}
                     if set(data) - allowed:
                         raise ValueError("These settings must be changed with the installation CLI")
