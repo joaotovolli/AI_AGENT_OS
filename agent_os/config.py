@@ -23,6 +23,8 @@ FEATURE_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS
 DEFAULTS.update({"external_repeat_limit": 3, "external_wait_min_seconds": 900,
                  "external_wait_max_seconds": 21600})
 PROGRESS_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS - FEATURE_SETTINGS
+DEFAULTS.update({"strategic_delegation": False, "delegation_timeout_seconds": 600})
+STRATEGY_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS - FEATURE_SETTINGS - PROGRESS_SETTINGS
 _LOCK = threading.RLock()
 
 
@@ -56,7 +58,7 @@ def validate(data):
     for key in ("model", "reasoning"):
         if key in data and (not isinstance(data[key], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}", data[key])):
             raise ValueError(f"Invalid {key}")
-    for key in ("fast", "github_followups", "diagnostic_escalation"):
+    for key in ("fast", "github_followups", "diagnostic_escalation", "strategic_delegation"):
         if key in data and type(data[key]) is not bool:
             raise ValueError(f"{key} must be true or false")
     if "github_operators" in data:
@@ -72,7 +74,7 @@ def validate(data):
             if not isinstance(model, dict) or set(model) != {"model", "reasoning"}:
                 raise ValueError("Each diagnostic preference requires model and reasoning")
             validate(model)
-    limits = {"port": (1024, 65535), "idle_seconds": (60, 86400),
+    limits = {"delegation_timeout_seconds": (30, 1800), "port": (1024, 65535), "idle_seconds": (60, 86400),
               "step_timeout_seconds": (30, 86400), "verify_timeout_seconds": (10, 7200),
               "retry_base_seconds": (1, 3600), "retry_max_seconds": (60, 86400),
               "github_progress_seconds": (30, 3600), "diagnostic_min_attempts": (3, 20),
@@ -95,6 +97,9 @@ def load(root):
         progress = private_dir(root) / "progress-settings.json"
         if progress.exists():
             overrides.update(json.loads(progress.read_text()))
+        strategy = private_dir(root) / "strategy-settings.json"
+        if strategy.exists():
+            overrides.update(json.loads(strategy.read_text()))
         result = dict(DEFAULTS, **validate(overrides))
         if result["external_wait_min_seconds"] > result["external_wait_max_seconds"]:
             raise ValueError("External waiting minimum must not exceed its maximum")
@@ -111,6 +116,7 @@ def save(root, updates):
         atomic_json(private_dir(root) / "config.json", {k: v for k, v in config.items() if k in LEGACY_SETTINGS})
         atomic_json(private_dir(root) / "features.json", {k: v for k, v in config.items() if k in FEATURE_SETTINGS})
         atomic_json(private_dir(root) / "progress-settings.json", {k: v for k, v in config.items() if k in PROGRESS_SETTINGS})
+        atomic_json(private_dir(root) / "strategy-settings.json", {k: v for k, v in config.items() if k in STRATEGY_SETTINGS})
         return config
 
 

@@ -74,6 +74,8 @@ def guidance_command(body):
 class GoalProgress:
     def init_progress(self, db):
         db.executescript("""
+          CREATE TABLE IF NOT EXISTS strategies (
+            goal_id TEXT NOT NULL, key TEXT NOT NULL, data TEXT NOT NULL, updated REAL NOT NULL, PRIMARY KEY(goal_id,key));
           CREATE TABLE IF NOT EXISTS goal_control (
             goal_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, wait TEXT NOT NULL DEFAULT '{}');
           CREATE TABLE IF NOT EXISTS guidance (
@@ -194,7 +196,9 @@ class GoalProgress:
         return all(i["status"] == "verified" for i in self.work_plan(goal_id))
 
     def schedule_external(self, goal_id, diagnostic, settings, now=None):
+        from .strategy import scheduled_delay
         now = time.time() if now is None else now
+        scheduled = scheduled_delay(self, goal_id, now)
         old = self.wait_state(goal_id)
         identity = {"blocker_key": diagnostic.get("blocker_key") or "external-unspecified",
                     "approach_key": diagnostic.get("approach_key") or "unspecified",
@@ -216,8 +220,10 @@ class GoalProgress:
         watching = bool(waiting_keys) and waiting_keys <= observed_keys
         if watching and not (old and not equivalent):
             delay = min(maximum, min(w["expires"] for w in active)-now)
+        if scheduled is not None:
+            delay = scheduled
         waiting = dict(identity, equivalent_attempts=count, stalled=stalled, next_run=now+delay,
-                       reason=("Background watchers are waiting; full model attempts deferred" if watching else
+                       reason=("Documented availability; next useful check scheduled" if scheduled is not None else "Background watchers are waiting; full model attempts deferred" if watching else
                                "Unchanged external dependency; full model attempts deferred" if stalled else "Waiting for an external dependency"),
                        wake_on="Operator context, a condition event, a different approach, or the next scheduled check")
         with self.db() as db:
@@ -248,6 +254,7 @@ class GoalProgress:
         self._dirty(db)
 
     def progress_snapshot(self):
+        from .strategy import all_records
         result = {}
         for goal in self.goals():
             goal_id = goal["id"]
@@ -256,13 +263,13 @@ class GoalProgress:
             result[goal_id] = {"guidance": self.guidance(goal_id), "work_plan": plan,
                                "actionable": [i["key"] for i in actionable], "wait": self.wait_state(goal_id),
                                "partial": bool(actionable) and any(i["status"] in ("waiting", "needs_input") for i in plan),
-                               "watchers": self.watchers(goal_id)}
+                               "watchers": self.watchers(goal_id), "strategies": all_records(self, goal_id)}
         return result
 
     def export_progress(self, completion=None):
         data = {}
         with self.db() as db:
-            for table in ("goal_control", "guidance", "work_items", "watchers"):
+            for table in ("goal_control", "guidance", "work_items", "watchers", "strategies"):
                 data[table] = [dict(r) for r in db.execute("SELECT * FROM " + table)]
         if completion:
             for row in data["guidance"]:
@@ -278,7 +285,7 @@ class GoalProgress:
 
     def restore_progress(self, data):
         with self.db() as db:
-            for table in ("goal_control", "guidance", "work_items", "watchers"):
+            for table in ("goal_control", "guidance", "work_items", "watchers", "strategies"):
                 columns = [r[1] for r in db.execute("PRAGMA table_info(" + table + ")")]
                 for row in data.get(table, []):
                     if set(row) != set(columns) or not db.execute("SELECT 1 FROM goals WHERE id=?", (row["goal_id"],)).fetchone():

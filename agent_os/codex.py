@@ -10,6 +10,7 @@ from .config import atomic_json, private_dir
 from .process import terminate
 from .redact import redact
 from .history import BLOCKERS
+from . import strategy
 from .progress import WORK_STATES, validate_plan
 from .watchers import KINDS, validate_spec
 
@@ -50,8 +51,9 @@ SCHEMA = {
         "operator_reply": {"type": "string"},
         "work_plan": {"type": "array", "items": WORK_ITEM},
         "watchers": {"type": "array", "items": WATCHER},
+        "strategies": {"type": "array", "items": strategy.SCHEMA},
     },
-    "required": ["status", "summary", "progress", "evidence", "next_action", "diagnostic", "operator_reply", "work_plan", "watchers"],
+    "required": ["status", "summary", "progress", "evidence", "next_action", "diagnostic", "operator_reply", "work_plan", "watchers", "strategies"],
 }
 
 
@@ -86,6 +88,11 @@ def validate_result(data):
         next_check = value.get("next_check_at", 0)
         if type(next_check) not in (int, float) or not math.isfinite(next_check) or next_check < 0:
             raise ValueError("Invalid next useful check time")
+    strategic = data.get("strategies", [])
+    if not isinstance(strategic, list) or len(strategic) > 40:
+        raise ValueError("Invalid strategic records")
+    for record in strategic:
+        strategy.validate(record)
     validate_plan(data.get("work_plan", []))
     watchers = data.get("watchers", [])
     if not isinstance(watchers, list) or len(watchers) > 10:

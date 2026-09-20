@@ -93,8 +93,8 @@ event stream. Dirty histories are exported in chunks during the normal checkpoin
 identical entries are compacted with repetition ranges. The last 12 entries inform new attempts;
 older context remains in per-goal Git files. Recovery restores those ranges and message receipts.
 
-The optional diagnostic advisor uses this history to detect distinct unsuccessful approaches to
-one technical blocker. A persisted reservation, bounded read-only turn and cooldown prevent
+The optional diagnostic advisor requires an explicit evidence-backed strategic request; historical
+stall signals and distinct unsuccessful approaches are safety floors, not automatic triggers. A persisted reservation, bounded read-only turn and cooldown prevent
 immediate duplicate consultations. Its short recommendation returns to the worker. Catalog
 metadata and explicit operator preferences select candidates; model names are not capability
 ranks. See [diagnostics](DIAGNOSTICS.md) for the trigger, controls and limits.
@@ -133,3 +133,18 @@ sanitized file, JSON and HTTP predicates with a bounded thread pool, without inv
 Matching events requeue only the associated waiting work; completion still requires all existing
 gates. Terminal goals deactivate guidance and watchers. Recovery checkpoints include these tables.
 Resume preserves waiting deadlines. See [waiting](WAITING.md) and [operators](OPERATORS.md).
+
+
+## Adaptive strategy (0.4)
+
+The additive `strategies` table keeps source-backed diagnoses, alternatives, preparation, rejected
+approaches, decisions and advice outcomes per work item. Results update these concise operational
+records and prompts receive them across restarts. Documented future availability takes precedence
+over generic backoff or polling, while independent work retains priority. `docs/STRATEGY.md` defines
+the contract and limits of model-authored evidence.
+
+Read-only advice distinguishes higher reasoning from a stronger model and receives a consolidated
+dossier. Follow-up consultations require recommendation trials and new evidence. A separate opt-in
+permits one bounded, justified expert execution turn after useful advice. The helper cannot complete
+the goal or replace the plan; the base model resumes and existing completion gates remain intact.
+New preferences use `.agent-os/strategy-settings.json` to preserve retained runtime compatibility.

@@ -105,3 +105,6 @@ blocked goals, bounded retries for unchanged external dependencies and [backgrou
 watchers](docs/WAITING.md). Independent tasks can advance while a deterministic watcher waits
 without using model turns. Existing instances use the [validated update flow](docs/FRAMEWORK_UPDATES.md);
 checking for updates and applying an update remain distinct actions.
+
+See [adaptive strategic execution](docs/STRATEGY.md) for research before waiting, persistent
+strategy, reflective advisory escalation and optional scoped expert execution.

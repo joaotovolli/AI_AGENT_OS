@@ -126,3 +126,7 @@ Retry controls. Cancelling or completing a goal deactivates its guidance and act
 verified work and audit history remain available. Expiry asks the worker to reassess the dependency.
 Pause prevents model turns; background checks can continue. Resume preserves waiting deadlines.
 Use **Retry goal**, **Run now** or new operator context when an immediate reassessment is intended.
+
+Before external waiting, follow [strategic execution](STRATEGY.md): investigate authoritative timing,
+alternatives and independent preparation. A documented schedule takes precedence over watchers;
+watchers are a fallback for unknown, machine-observable transitions.

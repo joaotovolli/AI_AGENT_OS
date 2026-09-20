@@ -35,7 +35,7 @@ function paint(data) {
   $('instance').textContent=data.instance; $('release').textContent='Version '+data.release;
   const alive=data.worker_heartbeat && Date.now()/1000-data.worker_heartbeat<90;
   $('readiness').textContent=data.paused?'Paused':!alive?'Service offline':data.ready?'Ready':'Preparing';
-  $('worker-status').textContent=data.active_run?.role==='diagnostic'?'Diagnostic consultation':data.active_run?'Attempt in progress':alive?'Supervisor active':'Check the WSL2 services';
+  $('worker-status').textContent=data.active_run?.role==='diagnostic'?'Diagnostic consultation':data.active_run?.role==='scoped'?'Scoped expert execution':data.active_run?'Attempt in progress':alive?'Supervisor active':'Check the WSL2 services';
   const active=data.active_run||data.settings;
   $('current-model').textContent=active.model.replace('gpt-','');
   $('current-reasoning').textContent=active.reasoning+' · '+(active.fast?'Fast':'Standard');
@@ -67,6 +67,11 @@ function paint(data) {
       const clear=node('button','Clear guidance','secondary');clear.onclick=()=>action('/api/guidance',{action:'clear',goal_id:g.id,key:item.key});line.append(edit,clear);content.append(line);}
     for(const watcher of tracking.watchers||[]){const line=node('div',undefined,'watcher-item');line.append(node('p','Watcher '+watcher.key+' · '+watcher.status+' · Last check: '+time(watcher.last_check)+' · State: '+(watcher.observation??'unobserved')+(watcher.error?' · '+watcher.error:'')));
       if(watcher.status==='active'){const cancel=node('button','Cancel watcher','secondary');cancel.onclick=()=>action('/api/watchers/cancel',{goal_id:g.id,key:watcher.key});line.append(cancel);}content.append(line);}
+    for(const s of tracking.strategies||[]){const detail=node('details');detail.append(node('summary','Strategy · '+s.work_key+' · '+s.action),node('p',s.reason+' Next: '+s.next_action),node('p','Diagnosis: '+s.diagnosis+' · Uncertainty: '+s.uncertainty),node('p','Alternatives: '+s.alternatives),node('p','Independent work: '+s.independent_work));
+      if(s.not_before)detail.append(node('p','Useful check: '+time(s.not_before)+(s.expected_by?' · Window ends: '+time(s.expected_by):'')+' · Source: '+s.timing_source));
+      for(const f of s.findings||[])detail.append(node('p',f.source+' · '+f.finding+' · '+f.evidence));
+      for(const p of s.preparation||[])detail.append(node('p','Preparation · '+p.status+' · '+p.action+' · '+p.evidence));
+      if(s.escalation?.expected_value)detail.append(node('p','Escalation assessment: '+s.escalation.expected_value));content.append(detail);}
     row.dataset.goalId=g.id;
     const latest=data.diagnostics?.[g.id]?.[0]?.data;
     if(latest)content.append(node('p',[latest.phase,latest.blocker||latest.completed,latest.next_action].filter(Boolean).join(' · '),'goal-summary'));
@@ -99,6 +104,7 @@ function paint(data) {
   $('events').replaceChildren();
   for(const e of data.events.slice(0,24)){const row=node('div',undefined,'event');row.append(node('time',new Date(e.at*1000).toLocaleTimeString('en-GB')),node('span',e.message));$('events').append(row);}
   if(!settingsLoaded){$('model').value=data.settings.model;$('reasoning').value=data.settings.reasoning;$('fast').checked=data.settings.fast;
+    $('strategic-delegation').checked=!!data.settings.strategic_delegation;
     $('diagnostic-escalation').checked=data.settings.diagnostic_escalation;
     $('diagnostic-models').value=(data.settings.diagnostic_models||[]).map(m=>m.model+' '+m.reasoning).join('\n');
     $('github-followups').checked=data.settings.github_followups;
@@ -117,7 +123,7 @@ $('wake').onclick=()=>action('/api/control',{action:'wake'});
 $('goal-form').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"]');button.disabled=true;
   try {if(await action('/api/goals',{title:$('goal-title').value,description:$('goal-description').value,acceptance:$('goal-acceptance').value,commands:$('goal-commands').value.split('\n').map(x=>x.trim()).filter(Boolean)}))e.target.reset();}finally{button.disabled=false;}};
 $('guidance-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/guidance',{action:'set',goal_id:$('guidance-goal').value,key:$('guidance-key').value.trim(),body:$('guidance-body').value})){$('guidance-key').value='';$('guidance-body').value='';}};
-$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked,diagnostic_escalation:$('diagnostic-escalation').checked,github_followups:$('github-followups').checked,github_operators:$('github-operators').value.split(',').map(s=>s.trim()).filter(Boolean),diagnostic_models:$('diagnostic-models').value.split('\n').filter(s=>s.trim()).map(s=>{const parts=s.trim().split(/\s+/);return {model:parts[0],reasoning:parts.slice(1).join(' ')};})}))notice('Settings saved. They will apply to the next attempt.');};
+$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked,diagnostic_escalation:$('diagnostic-escalation').checked,strategic_delegation:$('strategic-delegation').checked,github_followups:$('github-followups').checked,github_operators:$('github-operators').value.split(',').map(s=>s.trim()).filter(Boolean),diagnostic_models:$('diagnostic-models').value.split('\n').filter(s=>s.trim()).map(s=>{const parts=s.trim().split(/\s+/);return {model:parts[0],reasoning:parts.slice(1).join(' ')};})}))notice('Settings saved. They will apply to the next attempt.');};
 $('framework-check').onclick=()=>action('/api/framework',{action:'check'});
 $('framework-apply').onclick=()=>action('/api/framework',{action:'apply',commit:snapshot?.framework?.target_commit});
 refresh();setInterval(refresh,3000);

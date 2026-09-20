@@ -61,6 +61,9 @@ class GitHub:
                       f"`{goal['id']}` · {goal['status']} · {goal['progress']}% · attempts: {goal['attempts']}",
                       "", redact(goal["summary"]), ""]
             progress = snapshot.get("goal_progress", {}).get(goal["id"], {})
+            for decision in progress.get("strategies", []):
+                lines += ["Strategy: " + redact(decision["work_key"] + " / " + decision["action"] + " — " + decision["reason"]),
+                          "Next: " + redact(decision["next_action"]), ""]
             waiting = progress.get("wait", {})
             if progress.get("partial"):
                 lines += ["Partially blocked; independent work remains actionable.", ""]

@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import advisor, checks, config, deploy, history
+from . import advisor, checks, config, deploy, history, strategy
 from .codex import Codex, classify_error
 from .framework import Framework
 from .github import GitHub
@@ -17,17 +17,14 @@ from .redact import redact
 from .state import State
 from .watchers import WatcherService
 
-STRATEGIES = (
-    "Reproduce the current issue; implement the smallest complete improvement and test it.",
-    "Inspect prior failed attempts. Change the method or implementation, and explain why it should work.",
-    "Build a minimal reproduction, check assumptions and dependencies, then repair the root cause.",
-    "Review architecture and test evidence. Try a simpler design or a different tool if earlier approaches stalled.",
-)
-
-
 def retry_delay(failures, settings, kind="execution"):
     base = max(settings["retry_base_seconds"], 60 if kind in ("quota", "authentication", "configuration") else 1)
     return min(settings["retry_max_seconds"], base * 2 ** min(max(failures - 1, 0), 12))
+
+
+def text_result(work):
+    result = work.get("result", {})
+    return history.text(result.get("summary", work.get("error", "Scoped attempt did not complete")) + " Evidence: " + "; ".join(result.get("evidence", [])), 2000)
 
 
 def completion_allowed(work, review, check_results):
@@ -127,7 +124,11 @@ Actionable work keys:
 {json.dumps([i['key'] for i in self.state.actionable_work(goal['id'])])}
 External waiting and condition watchers:
 {json.dumps({'wait': self.state.wait_state(goal['id']), 'watchers': self.state.watchers(goal['id'])}, ensure_ascii=False)}
-Strategy for this attempt: {STRATEGIES[(goal['attempts'] - 1) % len(STRATEGIES)]}
+{strategy.PROMPT}
+Persistent strategic conclusions:
+{json.dumps(strategy.all_records(self.state, goal['id']), ensure_ascii=False)}
+Advisor recommendations (durable, inspect their evidence before acting):
+{json.dumps(self.state.history(goal['id'], None, ('advisor_advice', 'delegation_result')), ensure_ascii=False)}
 Historical synchronization/runtime error (may no longer be current): {self.state.get('last_error', '')}
 Goal and immutable acceptance criteria:
 {json.dumps(goal, ensure_ascii=False, indent=2)}
@@ -212,24 +213,46 @@ Authorized follow-ups:
         advisor.consult(self, goal, settings)
         if self.cancelled(goal["id"]):
             return
+        delegated = advisor.delegation(self, goal, settings)
         run_id = self.state.begin_run(goal["id"])
         if not run_id:
             return  # A concurrent cancellation or terminal transition wins selection.
         # Disabling intake does not abandon follow-ups already accepted into the durable queue.
-        followups = self.state.claim_followups(goal["id"], run_id)
+        followups = [] if delegated else self.state.claim_followups(goal["id"], run_id)
         goal = self.state.goal(goal["id"])
         revision = self.state.context_revision(goal["id"])
-        self.state.set("active_run", {"id": run_id, "goal_id": goal["id"], "model": settings["model"],
-                                      "reasoning": settings["reasoning"], "fast": settings["fast"], "started": time.time()})
-        self.state.event("attempt.started", f"Attempt {goal['attempts']} started with {settings['model']} / {settings['reasoning']}", goal["id"])
+        run_settings = dict(settings, **delegated["choice"], fast=False,
+                            step_timeout_seconds=settings["delegation_timeout_seconds"]) if delegated else settings
+        if delegated:
+            record = delegated["record"]
+            self.state.note(goal["id"], run_id + ":delegation", "delegation_started",
+                            dict(delegated["choice"], blocker_key=record["blocker_key"],
+                                 request_id=record["escalation"]["request_id"],
+                                 evidence_fingerprint=delegated["fingerprint"], summary=record["escalation"]["scope"]))
+        self.state.set("active_run", {"id": run_id, "role": "scoped" if delegated else "worker", "goal_id": goal["id"], "model": run_settings["model"],
+                                      "reasoning": run_settings["reasoning"], "fast": run_settings["fast"], "started": time.time()})
+        self.state.event("attempt.started", f"Attempt {goal['attempts']} started with {run_settings['model']} / {run_settings['reasoning']}", goal["id"])
         event = lambda kind, message: self.state.event(kind, message, goal["id"])
         cancel = lambda: self.cancelled(goal["id"])
-        codex = Codex(self.root, settings, event, self.heartbeat, cancel)
-        work = codex.run(self.prompt(goal, followups), run_id)
+        if delegated:
+            cancel = lambda: (self.cancelled(goal["id"]) or not config.load(self.root)["strategic_delegation"] or
+                              not config.load(self.root)["diagnostic_escalation"] or
+                              revision != self.state.context_revision(goal["id"]))
+        codex = Codex(self.root, run_settings, event, self.heartbeat, cancel)
+        work = codex.run(delegated["prompt"] if delegated else self.prompt(goal, followups), run_id)
+        if delegated:
+            self.state.note(goal["id"], run_id + ":result", "delegation_result",
+                            {"blocker_key": delegated["record"]["blocker_key"], "model": run_settings["model"],
+                             "summary": text_result(work), "next_action": "Base model must inspect scoped changes and evidence."})
+            if work["ok"]:
+                work["result"].update(status="continue", work_plan=[], watchers=[], strategies=[], operator_reply="")
         self.add_usage(work.get("usage", {}))
         if work["ok"] and not cancel() and revision == self.state.context_revision(goal["id"]):
             try:
                 self.state.save_work_plan(goal["id"], work["result"].get("work_plan", []))
+                strategy.save(self.state, goal["id"], work["result"].get("strategies", []))
+                if "strategies" in work["result"]:
+                    strategy.validate_watchers(self.state, goal["id"], work["result"].get("watchers", []))
                 for spec in work["result"].get("watchers", []):
                     self.state.register_watcher(goal["id"], spec)
             except ValueError as exc:
@@ -258,7 +281,7 @@ Return the required JSON: status completed ONLY when every criterion is supporte
 evidence. Otherwise return continue with concrete missing evidence. Include evidence paths.
 Active guidance: {json.dumps(self.state.guidance(goal['id']), ensure_ascii=False)}
 Work plan: {json.dumps(self.state.work_plan(goal['id']), ensure_ascii=False)}
-Return empty work_plan and watchers arrays. Neither guidance nor plan weakens any original criterion.
+Return empty work_plan, watchers and strategies arrays. Neither guidance nor plan weakens any original criterion.
 Goal: {json.dumps(goal, ensure_ascii=False)}
 Working result: {json.dumps(result, ensure_ascii=False)}
 Deterministic checks: {json.dumps(results)}
@@ -271,7 +294,7 @@ Verification log: {verification_log}
         self.state.finish_followups(run_id, work["ok"] and not cancel(),
                                     work.get("result", {}).get("operator_reply", ""))
         diagnostic = history.diagnostic(work, results, review)
-        self.state.note(goal["id"], run_id, "attempt", dict(diagnostic, model=settings["model"],
+        self.state.note(goal["id"], run_id, "attempt", dict(diagnostic, model=run_settings["model"],
                         progress=self.state.goal(goal["id"])["progress"]), attempt=goal["attempts"])
         context_changed = revision != self.state.context_revision(goal["id"])
         finished = (completion_allowed(work, review, results) and self.state.plan_complete(goal["id"])
@@ -303,6 +326,8 @@ Verification log: {verification_log}
             plan = self.state.work_plan(goal["id"])
             if context_changed:
                 self.state.update_goal(goal["id"], status="queued", next_run=0)
+            elif delegated:
+                self.state.update_goal(goal["id"], status="queued", next_run=0)
             elif (diagnostic["blocker_kind"] in ("operator", "authentication", "configuration") and not actionable) or (
                     not work["ok"] and diagnostic["blocker_kind"] in ("authentication", "configuration")):
                 self.state.update_goal(goal["id"], status="blocked", next_run=0)
@@ -316,7 +341,7 @@ Verification log: {verification_log}
             else:
                 external = diagnostic["blocker_kind"] == "external" or (
                     work["ok"] and plan and not actionable and any(i["status"] == "waiting" for i in plan)
-                    and diagnostic["blocker_kind"] in ("none", "unknown"))
+                    and (diagnostic["blocker_kind"] in ("none", "unknown") or strategy.all_records(self.state, goal["id"])))
                 if external:
                     delay = self.state.schedule_external(goal["id"], diagnostic, settings)
                 else:
