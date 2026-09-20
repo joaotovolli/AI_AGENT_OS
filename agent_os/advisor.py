@@ -39,14 +39,15 @@ def stalled(entries, settings):
 def candidates(settings, models):
     catalog = {m["id"]: m for m in models}
     choices = list(settings["diagnostic_models"])
-    if not choices:
-        current, seen = settings["model"], set()
-        while current in catalog and current not in seen:
-            seen.add(current)
-            current = catalog[current].get("upgrade")
-            if current not in catalog:
-                break
-            choices.append({"model": current, "reasoning": catalog[current].get("default_reasoning", "medium")})
+    current, seen = settings["model"], set()
+    while current in catalog and current not in seen:
+        seen.add(current)
+        current = catalog[current].get("upgrade")
+        if current not in catalog or current in seen:
+            break
+        choice = {"model": current, "reasoning": catalog[current].get("default_reasoning", "medium")}
+        if choice not in choices:
+            choices.append(choice)
     efforts = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
     result = []
     for choice in choices:
@@ -78,7 +79,7 @@ def advice_id(entry):
 
 
 def eligible(worker, goal, settings, actions):
-    if not settings["diagnostic_escalation"] or worker.cancelled(goal["id"]):
+    if worker.cancelled(goal["id"]):
         return None
     record = strategy.request(worker.state, goal, settings, actions)
     if not record:
@@ -135,7 +136,7 @@ and next_action in English with required JSON fields; empty work_plan, watchers 
 No raw transcripts, secrets or reasoning traces. The base model will decide and execute next.
 """ + json.dumps(strategy.dossier(worker.state, goal, record), ensure_ascii=False)
     try:
-        cancel = lambda: (worker.cancelled(goal["id"]) or not config.load(worker.root)["diagnostic_escalation"] or
+        cancel = lambda: (worker.cancelled(goal["id"]) or
                           revision != worker.state.context_revision(goal["id"]))
         result = Codex(worker.root, advisor_settings, lambda *_: None, worker.heartbeat, cancel).run(prompt, run_id, readonly=True)
         worker.add_usage(result.get("usage", {}))
@@ -156,8 +157,6 @@ No raw transcripts, secrets or reasoning traces. The base model will decide and 
 
 def delegation(worker, goal, settings):
     """Return one scoped turn, never a persistent model change or automatic takeover."""
-    if not settings.get("strategic_delegation", False):
-        return None
     ready = eligible(worker, goal, settings, ("delegate",))
     if not ready:
         return None

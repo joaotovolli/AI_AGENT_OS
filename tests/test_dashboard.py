@@ -106,6 +106,32 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(state.get("paused"))
         self.assertEqual(state.goal(goal["id"])["status"], "queued")
 
+    def test_terminal_history_is_authenticated_paged_and_details_are_preserved(self):
+        state=State(self.root)
+        active=state.add_goal('Active','Task','Immutable active acceptance')
+        terminal=[]
+        for i in range(24):
+            goal=state.add_goal('History '+str(i),'Original description','Immutable archived acceptance')
+            state.update_goal(goal['id'],status='completed' if i%2 else 'cancelled',attempts=4,summary='Final evidence summary')
+            terminal.append(goal)
+        self.assertEqual(self.request('/api/goals/history',auth=False)[0],401)
+        self.assertEqual(self.request('/api/goals/'+terminal[0]['id'],auth=False)[0],401)
+        data=self.request('/api/state')[1]
+        self.assertIn(active['id'],[g['id'] for g in data['goals']])
+        self.assertFalse(any(g['status'] in ('completed','cancelled') for g in data['goals']))
+        self.assertNotIn(terminal[0]['id'],data['goal_progress'])
+        page=self.request('/api/goals/history?limit=10')[1]
+        self.assertEqual(len(page['goals']),10);self.assertEqual(page['next_offset'],10)
+        self.assertNotIn('description',page['goals'][0])
+        detail=self.request('/api/goals/'+terminal[0]['id'])[1]
+        self.assertEqual(detail['goal']['acceptance'],'Immutable archived acceptance')
+        self.assertEqual(detail['goal']['attempts'],4)
+        self.assertIn('history',detail);self.assertIn('progress',detail)
+        for suffix in ('?limit=100','?offset=-1','?limit=invalid'):
+            self.assertEqual(self.request('/api/goals/history'+suffix)[0],400)
+        self.assertEqual(self.request('/api/goals/missing')[0],404)
+        self.assertEqual(len(state.goals()),len(data['goals'])+24)
+
     def test_framework_requests_require_authentication_pause_and_pinned_commit(self):
         state = State(self.root)
         self.assertEqual(self.request("/api/framework", {"action": "check"}, auth=False)[0], 401)

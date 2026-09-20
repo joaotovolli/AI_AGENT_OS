@@ -8,7 +8,7 @@ import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
 
 from . import config, deploy, projects
 from .state import State
@@ -77,11 +77,24 @@ def make_server(root, port=None):
             if not self.authorized():
                 return
             if path == "/api/state":
-                data = state.snapshot()
+                data = state.snapshot(active_only=True)
                 data.update({"settings": config.load(root), "instance": root.name,
                              "projects": projects.discover(root),
                              "models": config.available_models(), "release": state.get("release", "initial")})
                 self.respond(200, data)
+            elif path == "/api/goals/history":
+                try:
+                    query = parse_qs(urlsplit(self.path).query)
+                    self.respond(200, state.goal_history(int(query.get("offset", [0])[0]), int(query.get("limit", [20])[0])))
+                except ValueError as exc:
+                    self.respond(400, {"error": str(exc)})
+            elif path.startswith("/api/goals/"):
+                goal = state.goal(path.removeprefix("/api/goals/"))
+                if not goal:
+                    self.respond(404, {"error": "Goal not found"})
+                else:
+                    self.respond(200, {"goal": goal, "progress": state.progress_snapshot([goal])[goal["id"]],
+                                       "history": state.history(goal["id"], 100)})
             elif path.startswith("/api/history/"):
                 goal_id = path.removeprefix("/api/history/")
                 if not state.goal(goal_id):
@@ -134,11 +147,7 @@ def make_server(root, port=None):
                                "external_repeat_limit", "external_wait_min_seconds", "external_wait_max_seconds"}
                     if set(data) - allowed:
                         raise ValueError("These settings must be changed with the installation CLI")
-                    was_enabled = config.load(root)["github_followups"]
                     result = config.save(root, data)
-                    if result["github_followups"] and not was_enabled:
-                        state.set("operator_enabled_since", time.time())
-                        state.set("operator_cursor", None)
                     state.set("needs_checkpoint", True)
                     state.set("failures", 0)
                     for goal in state.goals():

@@ -8,6 +8,8 @@ let busy = false;
 const expandedHistory = new Set();
 const expandedStrategies = new Set();
 const historyCache = new Map();
+let historyOffset = 0;
+let historyLoading = false;
 const fragment = new URLSearchParams(location.hash.slice(1));
 if (fragment.has('token')) {
   access = fragment.get('token');
@@ -40,8 +42,9 @@ function paint(data) {
   const active=data.active_run||data.settings;
   $('current-model').textContent=active.model.replace('gpt-','');
   $('current-reasoning').textContent=active.reasoning+' · '+(active.fast?'Fast':'Standard');
-  const users=data.goals.filter(g=>g.kind==='user');
-  $('goal-count').textContent=users.filter(g=>g.status==='completed').length+' / '+users.length;
+  const counts=data.goal_counts||{};
+  $('goal-count').textContent=(counts.user_completed||0)+' / '+(counts.user_total||0);
+  $('goal-history-summary').textContent='History · '+(counts.completed||0)+' completed · '+(counts.cancelled||0)+' cancelled · View history';
   $('next-wake').textContent=data.next_maintenance?'Maintenance: '+time(data.next_maintenance):'After initial setup';
   $('sync-status').textContent=data.github.synced?'Synced':data.github.error?'Pending':'Waiting';
   $('sync-time').textContent=data.github.last_push?time(data.github.last_push):'First checkpoint pending';
@@ -51,7 +54,8 @@ function paint(data) {
   const error=data.github.error||data.github.live_error||data.operator_channel?.error||data.last_error;
   notice(error||(!data.ready?'The system is preparing and testing this instance. Your goals will run once this step is complete.':''));
   $('goals').replaceChildren();
-  const visible=data.goals.filter(g=>g.kind!=='maintenance'||g.status!=='completed').slice(-30).reverse();
+  const rank={running:0,blocked:1,queued:2,waiting:3};
+  const visible=data.goals.filter(g=>!['completed','cancelled'].includes(g.status)).sort((a,b)=>(rank[a.status]??4)-(rank[b.status]??4)||b.updated-a.updated);
   if(!visible.length)$('goals').append(node('p','No goals in the queue. Add your next objective.','empty'));
   for(const g of visible){
     const row=node('article',undefined,'goal'), content=node('div'), side=node('div',undefined,'goal-side');
@@ -105,11 +109,7 @@ function paint(data) {
   $('events').replaceChildren();
   for(const e of data.events.slice(0,24)){const row=node('div',undefined,'event');row.append(node('time',new Date(e.at*1000).toLocaleTimeString('en-GB')),node('span',e.message));$('events').append(row);}
   if(!settingsLoaded){$('model').value=data.settings.model;$('reasoning').value=data.settings.reasoning;$('fast').checked=data.settings.fast;
-    $('strategic-delegation').checked=!!data.settings.strategic_delegation;
-    $('diagnostic-escalation').checked=data.settings.diagnostic_escalation;
-    $('diagnostic-models').value=(data.settings.diagnostic_models||[]).map(m=>m.model+' '+m.reasoning).join('\n');
-    $('github-followups').checked=data.settings.github_followups;
-    $('github-operators').value=(data.settings.github_operators||[]).join(', ');settingsLoaded=true;
+    settingsLoaded=true;
     const ids=new Set([...$('model-options').options].map(o=>o.value));for(const m of data.models){if(!ids.has(m.id)){const o=node('option');o.value=m.id;$('model-options').append(o);ids.add(m.id);}}
   }
   $('usage').textContent=((data.usage.input_tokens||0)+(data.usage.output_tokens||0)).toLocaleString('en-GB');
@@ -124,7 +124,32 @@ $('wake').onclick=()=>action('/api/control',{action:'wake'});
 $('goal-form').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button[type="submit"]');button.disabled=true;
   try {if(await action('/api/goals',{title:$('goal-title').value,description:$('goal-description').value,acceptance:$('goal-acceptance').value,commands:$('goal-commands').value.split('\n').map(x=>x.trim()).filter(Boolean)}))e.target.reset();}finally{button.disabled=false;}};
 $('guidance-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/guidance',{action:'set',goal_id:$('guidance-goal').value,key:$('guidance-key').value.trim(),body:$('guidance-body').value})){$('guidance-key').value='';$('guidance-body').value='';}};
-$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked,diagnostic_escalation:$('diagnostic-escalation').checked,strategic_delegation:$('strategic-delegation').checked,github_followups:$('github-followups').checked,github_operators:$('github-operators').value.split(',').map(s=>s.trim()).filter(Boolean),diagnostic_models:$('diagnostic-models').value.split('\n').filter(s=>s.trim()).map(s=>{const parts=s.trim().split(/\s+/);return {model:parts[0],reasoning:parts.slice(1).join(' ')};})}))notice('Settings saved. They will apply to the next attempt.');};
+$('settings-form').onsubmit=async e=>{e.preventDefault();if(await action('/api/settings',{model:$('model').value.trim(),reasoning:$('reasoning').value.trim(),fast:$('fast').checked}))notice('Settings saved. They will apply to the next attempt.');};
+async function loadGoalHistory(reset=false){
+  if(historyLoading)return;
+  historyLoading=true;
+  try{
+    const page=await api('/api/goals/history?offset='+(reset?0:historyOffset)+'&limit=20');
+    if(reset)$('historical-goals').replaceChildren();
+    for(const g of page.goals){
+      const row=node('details',undefined,'historical-goal');row.dataset.goalId=g.id;
+      row.append(node('summary',g.title+' · '+(friendly[g.status]||g.status)+' · '+time(g.updated)),node('p',g.attempts+' attempts · '+(g.summary||'No final summary recorded.')));
+      const body=node('div');row.append(body);let loaded=false;
+      row.addEventListener('toggle',async()=>{if(!row.open||loaded)return;loaded=true;
+        try{const detail=await api('/api/goals/'+encodeURIComponent(g.id));
+          body.append(node('p','Acceptance: '+detail.goal.acceptance));
+          for(const item of detail.progress.work_plan||[])body.append(node('p',item.title+' · '+item.status+' · '+item.evidence));
+          body.append(node('h3','Diagnostic history'));
+          for(const entry of detail.history)body.append(node('p',time(entry.at)+' · '+entry.kind+' · '+[entry.data.summary,entry.data.next_action].filter(Boolean).join(' · ')));
+        }catch(error){loaded=false;body.textContent=error.message;}
+      });$('historical-goals').append(row);
+    }
+    if(reset&&!page.goals.length)$('historical-goals').append(node('p','No completed or cancelled goals yet.','empty'));
+    historyOffset=page.next_offset;$('history-more').hidden=historyOffset===null;
+  }catch(error){notice(error.message);}finally{historyLoading=false;}
+}
+$('goal-history').addEventListener('toggle',()=>{if($('goal-history').open)loadGoalHistory(true);});
+$('history-more').onclick=()=>loadGoalHistory();
 $('framework-check').onclick=()=>action('/api/framework',{action:'check'});
 $('framework-apply').onclick=()=>action('/api/framework',{action:'apply',commit:snapshot?.framework?.target_commit});
 refresh();setInterval(refresh,3000);

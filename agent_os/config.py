@@ -14,8 +14,8 @@ DEFAULTS = {
 }
 LEGACY_SETTINGS = frozenset(DEFAULTS)
 DEFAULTS.update({
-    "github_followups": False, "github_operators": [],
-    "diagnostic_escalation": False, "diagnostic_models": [],
+    "github_followups": True, "github_operators": [],
+    "diagnostic_escalation": True, "diagnostic_models": [],
     "diagnostic_min_attempts": 3, "diagnostic_cooldown_seconds": 3600,
     "diagnostic_timeout_seconds": 180, "framework_check_seconds": 86400,
 })
@@ -23,8 +23,9 @@ FEATURE_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS
 DEFAULTS.update({"external_repeat_limit": 3, "external_wait_min_seconds": 900,
                  "external_wait_max_seconds": 21600})
 PROGRESS_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS - FEATURE_SETTINGS
-DEFAULTS.update({"strategic_delegation": False, "delegation_timeout_seconds": 600})
+DEFAULTS.update({"strategic_delegation": True, "delegation_timeout_seconds": 600})
 STRATEGY_SETTINGS = frozenset(DEFAULTS) - LEGACY_SETTINGS - FEATURE_SETTINGS - PROGRESS_SETTINGS
+RETIRED_FLAGS = frozenset(("github_followups", "diagnostic_escalation", "strategic_delegation"))
 _LOCK = threading.RLock()
 
 
@@ -101,6 +102,8 @@ def load(root):
         if strategy.exists():
             overrides.update(json.loads(strategy.read_text()))
         result = dict(DEFAULTS, **validate(overrides))
+        # Legacy flags remain readable by retained runtimes, but cannot disable core policy.
+        result.update({name: True for name in RETIRED_FLAGS})
         if result["external_wait_min_seconds"] > result["external_wait_max_seconds"]:
             raise ValueError("External waiting minimum must not exceed its maximum")
         return result
@@ -110,6 +113,7 @@ def save(root, updates):
     with _LOCK:
         config = load(root)
         config.update(validate(updates))
+        config.update({name: True for name in RETIRED_FLAGS})
         if config["external_wait_min_seconds"] > config["external_wait_max_seconds"]:
             raise ValueError("External waiting minimum must not exceed its maximum")
         # Retained pre-feature runtimes reject unknown keys. Keep their configuration readable.

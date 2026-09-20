@@ -30,6 +30,7 @@ class State(GoalProgress):
                 status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
                 progress INTEGER NOT NULL DEFAULT 0, summary TEXT NOT NULL DEFAULT '',
                 created REAL NOT NULL, updated REAL NOT NULL, next_run REAL NOT NULL DEFAULT 0);
+              CREATE INDEX IF NOT EXISTS goals_status_updated ON goals(status,updated,id);
               CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL,
                 goal_id TEXT, kind TEXT NOT NULL, message TEXT NOT NULL);
@@ -50,6 +51,9 @@ class State(GoalProgress):
             """)
 
             self.init_progress(db)
+            # Establish intake before the first poll so a new owner's first comment is not lost.
+            # Existing cursors, pause, deadlines and goal data remain untouched during upgrades.
+            db.execute("INSERT OR IGNORE INTO meta VALUES ('operator_enabled_since',?)", (json.dumps(time.time()),))
 
     @contextmanager
     def db(self):
@@ -80,9 +84,26 @@ class State(GoalProgress):
         result["commands"] = json.loads(result["commands"])
         return result
 
-    def goals(self):
+    def goals(self, active_only=False):
         with self.db() as db:
-            return [self.decode(row) for row in db.execute("SELECT * FROM goals ORDER BY created")]
+            return [self.decode(row) for row in db.execute("SELECT * FROM goals" + (" WHERE status NOT IN ('completed','cancelled')" if active_only else "") + " ORDER BY created")]
+
+    def goal_counts(self):
+        with self.db() as db:
+            rows = db.execute("SELECT status,kind,COUNT(*) AS n FROM goals GROUP BY status,kind").fetchall()
+        return {"completed": sum(r["n"] for r in rows if r["status"] == "completed"),
+                "cancelled": sum(r["n"] for r in rows if r["status"] == "cancelled"),
+                "user_total": sum(r["n"] for r in rows if r["kind"] == "user"),
+                "user_completed": sum(r["n"] for r in rows if r["kind"] == "user" and r["status"] == "completed")}
+
+    def goal_history(self, offset=0, limit=20):
+        if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError("History requires a nonnegative offset and a limit from 1 to 50")
+        with self.db() as db:
+            rows = db.execute("SELECT id,title,status,updated,attempts,summary,progress,kind FROM goals "
+                              "WHERE status IN ('completed','cancelled') ORDER BY updated DESC,id DESC LIMIT ? OFFSET ?",
+                              (limit+1, offset)).fetchall()
+        return {"goals": [dict(row) for row in rows[:limit]], "next_offset": offset+limit if len(rows)>limit else None}
 
     def goal(self, goal_id):
         with self.db() as db:
@@ -261,9 +282,10 @@ class State(GoalProgress):
         if self.get("framework", {}).get("status") == "applying":
             self.set("framework", {"status": "attention", "message": "Framework update was interrupted. Inspect source and remote state before retrying."})
 
-    def snapshot(self):
-        return {"goals": self.goals(), "events": self.events(), "goal_progress": self.progress_snapshot(),
-                "diagnostics": {g["id"]: self.history(g["id"], 1) for g in self.goals()},
+    def snapshot(self, active_only=False):
+        goals = self.goals(active_only=active_only)
+        return {"goals": goals, "goal_counts": self.goal_counts(), "events": self.events(), "goal_progress": self.progress_snapshot(goals),
+                "diagnostics": {g["id"]: self.history(g["id"], 1) for g in goals},
                 "followups": self.followup_receipts()[-50:], "operator_channel": self.get("operator_channel", {}),
                 "framework": self.get("framework", {}),
                 "ready": self.get("ready", False), "paused": self.get("paused", False),

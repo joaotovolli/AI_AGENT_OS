@@ -13,12 +13,11 @@ The dashboard shows current context and the latest 100 entries; Git retains earl
 Percentages remain estimates. The existing acceptance, independent review, publication and
 activation gates determine completion.
 
-## Optional diagnostic advisor
+## Integrated diagnostic advice
 
-**Diagnostic advisor** is off by default and persists per instance. Enabling it never changes
-the normal worker's model, reasoning or Fast settings. A separate read-only Codex session may
-analyze one recurring technical blocker and return a different approach to that worker.
-Normal implementation and completion review stay in the regular goal lifecycle.
+Diagnostic advice is part of normal Agent OS operation. It never changes the configured base
+model, reasoning or Fast settings. Availability does not trigger a call: an explicit, evidence-backed
+strategic decision must pass the same cost, maturity, reservation and cooldown gates.
 
 Read [strategic execution](STRATEGY.md) for the decision contract. The worker must explicitly
 request advice after researching the cause, considering alternatives, trying evidenced approaches
@@ -40,8 +39,9 @@ reasons to buy more inference.
 
 ## Selecting an advisor
 
-The dashboard accepts ordered `model-id reasoning` preferences. Designate models you consider
-stronger for diagnosis. Choices must exist in the installed Codex model catalog and explicitly
+Selection follows installed catalog upgrade suggestions automatically. Advanced deployments may
+retain ordered `diagnostic_models` preferences through the settings CLI. Stale or unavailable
+preferences fall back to catalog suggestions. Choices must exist in the installed Codex model catalog and explicitly
 support the chosen reasoning level. `consult_reasoning` selects the next catalog-supported higher effort for the current model;
 `consult_model` selects a different model. Without preferences, the controller follows explicit catalog upgrade suggestions. It
 does not infer capability from model names or silently try guessed IDs. If no suitable
@@ -53,19 +53,20 @@ Advanced settings can be changed with `python3 -m agent_os settings --json '<JSO
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `diagnostic_escalation` | `false` | Explicit permission for advisor calls |
-| `diagnostic_models` | `[]` | Ordered objects containing `model` and `reasoning` |
+| `diagnostic_escalation` | `true` | Retired compatibility flag; core policy ignores legacy false values |
+| `diagnostic_models` | `[]` | Optional advanced preferences; catalog selection works without them |
 | `diagnostic_min_attempts` | `3` | Evidence safety floor; never an automatic trigger |
 | `diagnostic_cooldown_seconds` | `3600` | Minimum interval between consultations |
 | `diagnostic_timeout_seconds` | `180` | Maximum duration of one consultation |
 
-| `strategic_delegation` | `false` | Additional opt-in for one justified scoped execution turn after useful advice/trials |
+| `strategic_delegation` | `true` | Retired compatibility flag; scoped execution still requires useful advice/trials and explicit value |
 | `delegation_timeout_seconds` | `600` | Maximum duration of that scoped turn |
 
 Scoped execution cannot mark the overall goal complete. Normal ownership resumes afterward.
 The helper's scope is an instruction under the existing full-access account, not a sandbox.
 New delegation preferences live in `.agent-os/strategy-settings.json`, which retained older runtimes
-ignore. Existing preferences are unchanged by updates.
+ignore. Base model/reasoning/Fast and cost controls remain unchanged. Retired opt-in flags are normalized
+to true when read and on subsequent saves; existing goals and deadlines are not changed.
 
 Advisor usage is included in the instance token counter. New feature preferences live in ignored
 `.agent-os/features.json`; original execution settings remain in `.agent-os/config.json` so

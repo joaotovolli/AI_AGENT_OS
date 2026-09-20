@@ -120,12 +120,9 @@ class OperatorTests(unittest.TestCase):
         self.poll()
         self.assertEqual(self.state.followups()[0]["body"], "Use the revised input")
 
-    def test_disabled_channel_and_idle_messages_do_not_create_goals(self):
+    def test_legacy_flag_cannot_disable_owner_channel_and_idle_messages_do_not_create_goals(self):
         self.github.comments = [comment()]
         config.save(self.root, {"github_followups": False})
-        self.poll()
-        self.assertEqual(self.state.followups(), [])
-        config.save(self.root, {"github_followups": True})
         self.state.update_goal(self.goal["id"], status="completed")
         self.poll()
         self.assertIsNone(self.state.followups()[0]["goal_id"])

@@ -222,12 +222,12 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
             self.assertEqual(cli.return_value.run.call_count,1)
         self.assertIn('No expert execution needed',self.worker.prompt(self.goal))
 
-    def test_direct_execution_requires_opt_in_useful_advice_and_trials(self):
+    def test_direct_execution_requires_useful_advice_and_trials_not_legacy_flags(self):
         value=record('delegate');value['escalation']['scope']='Repair only the parser byte-boundary function and its regression test';self.save(value)
         with patch('agent_os.advisor.config.available_models',return_value=self.catalog):
             self.assertIsNone(advisor.delegation(self.worker,self.goal,self.settings))
             value['advice_outcomes']=self.prior_advice();self.save(value)
-            self.assertIsNone(advisor.delegation(self.worker,self.goal,dict(self.settings,strategic_delegation=False)))
+            self.assertIsNotNone(advisor.delegation(self.worker,self.goal,dict(self.settings,strategic_delegation=False,diagnostic_escalation=False)))
             scoped=advisor.delegation(self.worker,self.goal,self.settings)
             self.assertIn(value['escalation']['scope'],scoped['prompt'])
             self.assertEqual(config.load(self.root),self.settings)

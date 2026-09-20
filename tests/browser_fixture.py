@@ -16,6 +16,9 @@ from test_goal_progress import item
 root = Path(sys.argv[1])
 state = State(root)
 state.ensure_bootstrap()
+for i in range(65):
+    goal=state.add_goal('Archived goal '+str(i),'Completed work','Archived evidence')
+    state.update_goal(goal['id'],status='completed' if i%2 else 'cancelled',summary='Final verified summary',attempts=3)
 state.update_goal("bootstrap", status="running", attempts=1, progress=45,
                   summary="Validating services, persistence and dashboard access.")
 state.save_work_plan("bootstrap", [item(status="actionable")])
