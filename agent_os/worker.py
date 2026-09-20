@@ -60,6 +60,7 @@ class Worker:
 
     def prompt(self, goal, followups=()):
         diagnostic_history = self.state.history(goal["id"], 12)
+        settings = config.load(self.root)
         report = f"python3 -m agent_os --root {shlex.quote(str(self.root))} progress --goal {goal['id']} --percent 40 --summary 'Concrete progress'"
         return f"""You are the working agent for this owner-operated WSL2 instance of AI Agent OS.
 Read AGENTS.md and docs/ARCHITECTURE.md. Execute the goal below autonomously. The owner
@@ -125,6 +126,10 @@ Actionable work keys:
 External waiting and condition watchers:
 {json.dumps({'wait': self.state.wait_state(goal['id']), 'watchers': self.state.watchers(goal['id'])}, ensure_ascii=False)}
 {strategy.PROMPT}
+Escalation controls (do not change these operator preferences):
+{json.dumps({k: settings[k] for k in ('diagnostic_escalation', 'strategic_delegation', 'diagnostic_min_attempts', 'diagnostic_cooldown_seconds')})}
+Historical stall signal, not an escalation instruction:
+{advisor.stalled(self.state.history(goal['id'], 120), settings) or 'none'}
 Persistent strategic conclusions:
 {json.dumps(strategy.all_records(self.state, goal['id']), ensure_ascii=False)}
 Advisor recommendations (durable, inspect their evidence before acting):

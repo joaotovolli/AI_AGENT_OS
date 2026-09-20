@@ -9,12 +9,17 @@ from agent_os.config import token
 from agent_os.server import make_server
 from agent_os.state import State
 from agent_os.projects import register
+from agent_os import strategy
+from test_strategy import record
+from test_goal_progress import item
 
 root = Path(sys.argv[1])
 state = State(root)
 state.ensure_bootstrap()
 state.update_goal("bootstrap", status="running", attempts=1, progress=45,
                   summary="Validating services, persistence and dashboard access.")
+state.save_work_plan("bootstrap", [item(status="actionable")])
+strategy.save(state, "bootstrap", [record("research")])
 state.set("worker_heartbeat", time.time())
 state.set("github", {"synced": True, "last_push": time.time(), "repository": "joaotovolli/AI_AGENT_OS"})
 state.note("bootstrap", "fixture", "attempt", {"phase": "Service validation", "summary": "Dashboard connectivity verified", "blocker": "", "next_action": "Verify goal execution"}, attempt=1)

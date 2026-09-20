@@ -4,6 +4,7 @@ import math
 import time
 
 from .history import text
+from .redact import redact
 from .progress import key, observation_digest
 
 ACTIONS = ('execute', 'research', 'experiment', 'prepare', 'schedule', 'watch', 'backoff',
@@ -202,7 +203,7 @@ def request(state, goal, settings, actions):
 
 
 def dossier(state, goal, record):
-    return {'goal': {k: goal[k] for k in ('title', 'description', 'acceptance')},
+    return {'goal': {k: redact(goal[k]) for k in ('title', 'description', 'acceptance')},
             'affected_work': next(i for i in state.work_plan(goal['id']) if i['key'] == record['work_key']),
             'verified': [i for i in state.work_plan(goal['id']) if i['status'] == 'verified'],
             'guidance': state.guidance(goal['id']), 'strategy': record,

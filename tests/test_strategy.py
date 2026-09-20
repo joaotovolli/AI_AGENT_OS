@@ -142,6 +142,29 @@ class StrategyTests(StrategyFixture, unittest.TestCase):
         self.save(record('needs_input', human_dependency='Owner must complete interactive MFA locally'))
         self.assertEqual(self.state.work_plan(self.gid)[0]['status'], 'needs_input')
 
+    def test_refining_an_aggregate_preserves_criteria_and_pending_live_evidence(self):
+        self.state.save_work_plan(self.gid,[item('aggregate','actionable',['verify','prepare']),item('prepare','verified')])
+        self.save(record('schedule',not_before=time.time()+36000,timing_source='docs/provider-contract.md'))
+        self.assertEqual(self.state.actionable_work(self.gid),[])
+        self.assertFalse(self.state.plan_complete(self.gid))
+        self.state.save_work_plan(self.gid,[item('verify','verified')])
+        self.assertEqual(self.state.actionable_work(self.gid)[0]['key'],'aggregate')
+        self.assertFalse(self.state.plan_complete(self.gid))
+        self.assertEqual(self.state.goal(self.gid)['acceptance'],self.goal['acceptance'])
+
+    def test_schema_is_strict_and_rejected_hypothesis_is_archived_on_reopening(self):
+        from agent_os.codex import SCHEMA, validate_result
+        self.assertIn('strategies',SCHEMA['required'])
+        value=success('continue')['result'];value['strategies']=[record()]
+        validate_result(value)
+        value['strategies'][0]['private_reasoning']='Never store this'
+        with self.assertRaises(ValueError):validate_result(value)
+        original=record();self.save(original)
+        changed=record();changed['approaches'][0]['status']='selected';changed['change_evidence']='docs/evidence/new-input.md'
+        self.save(changed)
+        findings=strategy.all_records(self.state,self.gid)[0]['findings']
+        self.assertTrue(any('Mismatch remains' in f['finding'] for f in findings))
+
     def test_old_runtime_config_files_have_no_new_settings(self):
         settings=config.save(self.root, {'strategic_delegation': True})
         self.assertTrue(settings['strategic_delegation'])
@@ -209,7 +232,7 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
             self.assertIn(value['escalation']['scope'],scoped['prompt'])
             self.assertEqual(config.load(self.root),self.settings)
 
-    def test_scoped_turn_cannot_complete_goal_and_base_resumes_even_after_failure(self):
+    def test_scoped_turn_cannot_complete_goal_and_base_resumes(self):
         value=record('delegate',advice_outcomes=self.prior_advice())
         value['escalation']['scope']='Repair parser boundary only';self.save(value)
         self.worker.github=FakeGitHub(self.state);self.worker.heartbeat=lambda:None;self.worker.promote_and_deploy=lambda:None
@@ -226,6 +249,18 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
             self.assertEqual(cli.call_args.args[1]['model'],self.settings['model'])
             self.assertIn('Base model must inspect',cli.return_value.run.call_args.args[0])
         self.assertEqual(config.load(self.root),self.settings)
+
+    def test_failed_scoped_turn_returns_to_base_and_reservation_survives_restart(self):
+        value=record('delegate',advice_outcomes=self.prior_advice());value['escalation']['scope']='Parser only';self.save(value)
+        self.worker.github=FakeGitHub(self.state);self.worker.heartbeat=lambda:None
+        with patch('agent_os.advisor.config.available_models',return_value=self.catalog),patch('agent_os.worker.Codex') as cli:
+            cli.return_value.run.return_value={'ok':False,'error_kind':'execution','error':'Helper failed'}
+            self.worker.tick()
+            self.assertEqual(self.state.goal(self.gid)['status'],'queued')
+            fresh=Worker(self.root);self.addCleanup(fresh.watchers.close);fresh.state.recover()
+            self.assertIsNone(advisor.delegation(fresh,self.goal,self.settings))
+            self.worker.tick()
+            self.assertEqual(cli.call_args.args[1]['model'],self.settings['model'])
 
     def test_failed_advice_never_enables_direct_execution(self):
         self.state.note(self.gid,'failed','advisor_failed',dict(blocker_key='parser',summary='Unavailable'))

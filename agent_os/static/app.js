@@ -6,6 +6,7 @@ let snapshot = null;
 let settingsLoaded = false;
 let busy = false;
 const expandedHistory = new Set();
+const expandedStrategies = new Set();
 const historyCache = new Map();
 const fragment = new URLSearchParams(location.hash.slice(1));
 if (fragment.has('token')) {
@@ -67,7 +68,7 @@ function paint(data) {
       const clear=node('button','Clear guidance','secondary');clear.onclick=()=>action('/api/guidance',{action:'clear',goal_id:g.id,key:item.key});line.append(edit,clear);content.append(line);}
     for(const watcher of tracking.watchers||[]){const line=node('div',undefined,'watcher-item');line.append(node('p','Watcher '+watcher.key+' · '+watcher.status+' · Last check: '+time(watcher.last_check)+' · State: '+(watcher.observation??'unobserved')+(watcher.error?' · '+watcher.error:'')));
       if(watcher.status==='active'){const cancel=node('button','Cancel watcher','secondary');cancel.onclick=()=>action('/api/watchers/cancel',{goal_id:g.id,key:watcher.key});line.append(cancel);}content.append(line);}
-    for(const s of tracking.strategies||[]){const detail=node('details');detail.append(node('summary','Strategy · '+s.work_key+' · '+s.action),node('p',s.reason+' Next: '+s.next_action),node('p','Diagnosis: '+s.diagnosis+' · Uncertainty: '+s.uncertainty),node('p','Alternatives: '+s.alternatives),node('p','Independent work: '+s.independent_work));
+    for(const s of tracking.strategies||[]){const detail=node('details',undefined,'strategy-detail');const strategyKey=g.id+':'+s.work_key;detail.open=expandedStrategies.has(strategyKey);detail.addEventListener('toggle',()=>{if(detail.open)expandedStrategies.add(strategyKey);else expandedStrategies.delete(strategyKey);});detail.append(node('summary','Strategy · '+s.work_key+' · '+s.action),node('p',s.reason+' Next: '+s.next_action),node('p','Diagnosis: '+s.diagnosis+' · Uncertainty: '+s.uncertainty),node('p','Alternatives: '+s.alternatives),node('p','Independent work: '+s.independent_work));
       if(s.not_before)detail.append(node('p','Useful check: '+time(s.not_before)+(s.expected_by?' · Window ends: '+time(s.expected_by):'')+' · Source: '+s.timing_source));
       for(const f of s.findings||[])detail.append(node('p',f.source+' · '+f.finding+' · '+f.evidence));
       for(const p of s.preparation||[])detail.append(node('p','Preparation · '+p.status+' · '+p.action+' · '+p.evidence));
