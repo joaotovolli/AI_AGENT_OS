@@ -269,7 +269,7 @@ Supply a focused escalation question and concise operational evidence, never pri
 Apply advice with judgment and record advice_outcomes using advisor_advice data.advice_id (or legacy event_key) as advice_id.
 A later consultation needs a new request_id, recommendation trials and new evidence. An advisor may
 recommend no further escalation. Only after useful advice and attempted recommendations, consider
-an explicitly justified delegate request with a narrow scope, if scoped execution is operator-enabled.
+an explicitly justified delegate request with a narrow scope, when its expected value exceeds another base attempt or consultation.
 You remain goal owner. No model can change acceptance, permissions, approvals or operator settings.
 Return empty strategies for read-only review or when no strategic update is needed.
 """

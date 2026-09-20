@@ -14,7 +14,7 @@ within-turn reasoning and context handling.
 
 The web server remains available while the worker waits on Codex, GitHub or quota. It reads and
 writes the same SQLite database through independent transactions. Dashboard mutations require a
-local bearer token; browser requests also enforce Host and Origin checks. The optional GitHub
+local bearer token; browser requests also enforce Host and Origin checks. The standard GitHub
 channel queues authorized status-issue comments as context, with durable IDs and receipts. It
 does not expose dashboard controls or execute arbitrary issues. There are no remote CDN assets
 or unauthenticated execution endpoints.
@@ -57,7 +57,7 @@ Completed maintenance schedules the next hour. It does not manufacture code chan
 | `docs/evidence/` | Goal completion evidence |
 | `.agent-os/state.sqlite3` | Local transactional state, attempts and recent events |
 | `.agent-os/config.json` | Original local model/runtime configuration, readable by older retained runtimes |
-| `.agent-os/features.json` | Opt-in operator/advisor and update settings |
+| `.agent-os/features.json` | Advanced operator/advisor and update settings |
 | `docs/history/<goal-id>/` | Compact, versioned operational history |
 | `workspace/<project>/project.json` | Validated project access metadata |
 | `.agent-os-base.json` | Source repository, branch and inherited base commit |
@@ -93,7 +93,7 @@ event stream. Dirty histories are exported in chunks during the normal checkpoin
 identical entries are compacted with repetition ranges. The last 12 entries inform new attempts;
 older context remains in per-goal Git files. Recovery restores those ranges and message receipts.
 
-The optional diagnostic advisor requires an explicit evidence-backed strategic request; historical
+The diagnostic advisor requires an explicit evidence-backed strategic request; historical
 stall signals and distinct unsuccessful approaches are safety floors, not automatic triggers. A persisted reservation, bounded read-only turn and cooldown prevent
 immediate duplicate consultations. Its short recommendation returns to the worker. Catalog
 metadata and explicit operator preferences select candidates; model names are not capability
@@ -144,7 +144,20 @@ over generic backoff or polling, while independent work retains priority. `docs/
 the contract and limits of model-authored evidence.
 
 Read-only advice distinguishes higher reasoning from a stronger model and receives a consolidated
-dossier. Follow-up consultations require recommendation trials and new evidence. A separate opt-in
+dossier. Follow-up consultations require recommendation trials and new evidence. The integrated policy
 permits one bounded, justified expert execution turn after useful advice. The helper cannot complete
 the goal or replace the plan; the base model resumes and existing completion gates remain intact.
 New preferences use `.agent-os/strategy-settings.json` to preserve retained runtime compatibility.
+
+
+## Integrated defaults and compact history (0.5)
+
+Legacy autonomy flags stay readable for compatibility but normalize to enabled without changing
+model preferences, goal state, deadlines or pause. The next normal turn adopts the policy. Owner
+follow-ups use the established identity/permission checks, with an initial intake watermark persisted
+before polling. Advanced collaborators and resource preferences remain available through the CLI.
+
+The dashboard state endpoint selects only active goals and their detailed progress. SQL counts
+summarize terminal goals. Authenticated, bounded history pages load concise terminal rows on demand;
+individual goal details retain criteria, evidence and diagnostics. Checkpoints and non-dashboard
+snapshots continue to include every goal. This changes presentation and loading cost, not retention.

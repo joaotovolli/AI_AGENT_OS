@@ -82,10 +82,6 @@ def main():
         before = config.load(root)
         value = config.save(root, json.loads(args.json)) if args.json else before
         state = State(root)
-        if value["github_followups"] and not before["github_followups"]:
-            import time
-            state.set("operator_enabled_since", time.time())
-            state.set("operator_cursor", None)
         state.set("needs_checkpoint", True)
         print(json.dumps(value, indent=2))
     elif args.command == "project":

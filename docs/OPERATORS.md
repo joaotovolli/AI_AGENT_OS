@@ -1,12 +1,15 @@
 # GitHub operator follow-ups
 
-Enable **GitHub follow-ups** in Model and execution, then save. The feature is off by default.
-Only comments created after enabling it on this instance's existing `Agent OS status:` issue
-are eligible. Ordinary issues, pull requests and other repositories are not input channels.
+GitHub follow-ups are a standard communication channel. Once this instance has authenticated
+GitHub access and its `Agent OS status:` issue, the personal repository owner can comment there.
+Intake starts when this policy first initializes, before the first poll; earlier comments are not
+retroactively treated as new instructions. Existing intake cursors and receipts are preserved.
+Ordinary issues, pull requests and other repositories are not input channels.
 
 Leave a normal comment with context, a clarification or the result of a requested local action.
 The repository owner is the default operator. For organization-owned repositories, configure
-individual GitHub logins. Every accepted author must be a human user on the configured allowlist
+individual GitHub logins using the advanced `github_operators` CLI setting. Additional logins do
+not remove the personal repository owner. Every accepted author must be a human user on the configured allowlist
 and have current repository write, maintain or admin permission. The authenticated GitHub CLI
 must be able to inspect that permission and read/write status-issue comments; failures are shown
 in the dashboard. Bots, third parties and edited duplicates do not become new messages.
@@ -23,9 +26,8 @@ ambiguous network failures against the authenticated writer's existing receipt m
 deduplicates messages and replies; it does not promise exactly-once side effects inside a
 crashed Codex turn. Applications must retain their own transaction and approval protections.
 
-Disabling the feature stops new intake and GitHub replies until enabled again. Previously
-accepted context still reaches its goal. A comment may wake a blocked goal for reconsideration;
-it cannot resume a paused supervisor, change acceptance commands, change model settings, create
+Legacy `github_followups: false` no longer disables intake. A comment may wake a blocked goal
+for reconsideration; it cannot resume a paused supervisor, change acceptance commands, change model settings, create
 an authenticated dashboard session or approve an action requiring a stronger application gate.
 Quoted material remains untrusted. The controller never evaluates comment text as shell code.
 
@@ -56,7 +58,7 @@ Reuse the same key to replace its text and increment its version. Clear it with:
 /guide-clear <goal-id> verification-method
 ```
 
-Only currently authorized operators in the opt-in status-issue channel can use these commands.
+Only currently authorized operators in the authorized status-issue channel can use these commands.
 The target must be an existing active goal. Receipt and guidance changes commit atomically, so
 replayed comments cannot duplicate a guidance update after a crash. Invalid commands receive an
 explanation and do not become ordinary model instructions. Guidance updates wake a waiting goal

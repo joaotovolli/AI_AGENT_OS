@@ -253,10 +253,10 @@ class GoalProgress:
         db.execute("UPDATE goal_control SET wait='{}' WHERE goal_id=?", (goal_id,))
         self._dirty(db)
 
-    def progress_snapshot(self):
+    def progress_snapshot(self, goals=None):
         from .strategy import all_records
         result = {}
-        for goal in self.goals():
+        for goal in self.goals() if goals is None else goals:
             goal_id = goal["id"]
             plan = self.work_plan(goal_id)
             actionable = self.actionable_work(goal_id)

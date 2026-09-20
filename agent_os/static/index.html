@@ -33,6 +33,9 @@
     <section class="panel goal-panel">
       <div class="section-head"><div><p class="eyebrow">WORK QUEUE</p><h2>Goals</h2></div><div class="actions"><button id="wake" class="secondary">Run now</button><button id="pause" class="secondary">Pause</button><a href="#new-goal" class="button primary">+ New goal</a></div></div>
       <div id="goals" aria-live="polite"></div>
+      <details id="goal-history"><summary id="goal-history-summary">History</summary>
+        <div id="historical-goals"></div><button id="history-more" class="secondary" hidden>Load more</button>
+      </details>
     </section>
     <section class="panel" id="guidance-panel"><p class="eyebrow">OPERATOR GUIDANCE</p><h2>Instructions for later attempts</h2>
       <p class="muted">Guidance stays active for this goal until you replace or clear it. Saving the same key replaces its text. Acceptance criteria, model settings and required approvals stay in force.</p>
@@ -60,11 +63,7 @@
           <p class="muted">Choose or enter any model ID supported by your Codex.</p>
           <label for="reasoning">Reasoning</label><input id="reasoning" list="reasoning-options" required><datalist id="reasoning-options"><option value="minimal"><option value="low"><option value="medium"><option value="high"><option value="xhigh"><option value="max"></datalist>
           <label class="switch-row" for="fast"><span><strong>Fast</strong><small>Uses the Fast tier when available for your account and model.</small></span><input type="checkbox" id="fast" role="switch"></label>
-          <label class="switch-row" for="diagnostic-escalation"><span><strong>Diagnostic advisor</strong><small>Allow read-only advice after the working agent researches the problem and justifies the value of higher reasoning or a stronger model. Your working model stays unchanged.</small></span><input type="checkbox" id="diagnostic-escalation" role="switch"></label>
-          <label class="switch-row" for="strategic-delegation"><span><strong>Scoped expert execution</strong><small>Allow one bounded subproblem after useful advice, attempted recommendations and an explicit benefit assessment. Requires Diagnostic advisor. The working model resumes afterward.</small></span><input type="checkbox" id="strategic-delegation" role="switch"></label>
-          <details><summary>Diagnostic preferences</summary><label for="diagnostic-models">Stronger model preferences, in order</label><textarea id="diagnostic-models" rows="3" placeholder="model-id reasoning"></textarea><p class="muted">One model ID and reasoning level per line. Leave empty to use upgrade suggestions from the installed Codex catalog. Unavailable choices are skipped.</p></details>
-          <label class="switch-row" for="github-followups"><span><strong>GitHub follow-ups</strong><small>Receive authorized comments from this instance's status issue as context for its goals.</small></span><input type="checkbox" id="github-followups" role="switch"></label>
-          <label for="github-operators">Authorized GitHub logins</label><input id="github-operators" placeholder="Repository owner by default"><p class="muted">Comma-separated. Each operator must also have current write access to the repository. Never post credentials in comments.</p>
+          <p class="muted">Agent OS manages strategic research, waiting, advisory escalation and bounded expert assistance when useful. The configured model remains the normal goal owner.</p>
           <button class="primary" type="submit">Save settings</button><p class="muted">Applies to the next attempt. The current run keeps its settings.</p>
         </form>
         <div class="usage"><span>Tokens recorded for this instance</span><strong id="usage">0</strong><small>Usage reported by the CLI. The remaining account allowance is unknown.</small></div>

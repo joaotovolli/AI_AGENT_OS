@@ -126,8 +126,9 @@ Actionable work keys:
 External waiting and condition watchers:
 {json.dumps({'wait': self.state.wait_state(goal['id']), 'watchers': self.state.watchers(goal['id'])}, ensure_ascii=False)}
 {strategy.PROMPT}
-Escalation controls (do not change these operator preferences):
-{json.dumps({k: settings[k] for k in ('diagnostic_escalation', 'strategic_delegation', 'diagnostic_min_attempts', 'diagnostic_cooldown_seconds')})}
+Advisory and scoped assistance are core capabilities, not feature toggles.
+Cost controls (never automatic escalation triggers):
+{json.dumps({k: settings[k] for k in ('diagnostic_min_attempts', 'diagnostic_cooldown_seconds')})}
 Historical stall signal, not an escalation instruction:
 {advisor.stalled(self.state.history(goal['id'], 120), settings) or 'none'}
 Persistent strategic conclusions:
@@ -240,8 +241,7 @@ Authorized follow-ups:
         event = lambda kind, message: self.state.event(kind, message, goal["id"])
         cancel = lambda: self.cancelled(goal["id"])
         if delegated:
-            cancel = lambda: (self.cancelled(goal["id"]) or not config.load(self.root)["strategic_delegation"] or
-                              not config.load(self.root)["diagnostic_escalation"] or
+            cancel = lambda: (self.cancelled(goal["id"]) or
                               revision != self.state.context_revision(goal["id"]))
         codex = Codex(self.root, run_settings, event, self.heartbeat, cancel)
         work = codex.run(delegated["prompt"] if delegated else self.prompt(goal, followups), run_id)

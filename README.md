@@ -44,7 +44,7 @@ shortcut opens it with local authentication. The interface, documentation, promp
 | Persist until completion | SQLite state, process recovery, bounded individual turns, unlimited subsequent attempts and explicit verification. |
 | GitHub operator follow-ups | Opt-in, authorized status-issue comments enter the goal queue with durable receipts and replies. |
 | Per-goal diagnostics | Compact history survives the live activity window and is published separately for each goal. |
-| Optional diagnostic advisor | A bounded read-only consultation can help with a repeated technical blocker; the worker model stays unchanged. |
+| Reflective diagnostic advisor | A bounded read-only consultation can help with a repeated technical blocker; the worker model stays unchanged. |
 | Framework updates | Recorded provenance, daily discovery and explicit validated integration preserve instance work and retain the previous runtime. |
 | Separate projects | Project manifests expose access links without embedding generated products into the control console. |
 | Hourly idle improvement | After the queue clears, health and justified improvement goals run every 3,600 seconds by default. |
@@ -107,4 +107,9 @@ without using model turns. Existing instances use the [validated update flow](do
 checking for updates and applying an update remain distinct actions.
 
 See [adaptive strategic execution](docs/STRATEGY.md) for research before waiting, persistent
-strategy, reflective advisory escalation and optional scoped expert execution.
+strategy, reflective advisory escalation and bounded scoped expert execution.
+
+The normal execution settings are **Model**, **Reasoning** and **Fast**. Strategic assistance and
+repository-owner follow-ups are integrated by default, with evidence and cost gates before escalation.
+Completed/cancelled goals remain in paged **History** instead of filling the active queue.
+See [integrated operation and upgrade behavior](docs/INTEGRATED_OPERATION.md).

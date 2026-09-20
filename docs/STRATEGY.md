@@ -65,7 +65,7 @@ auditable operational contract, not proof that differently worded claims are gen
 Records are additive SQLite data, visible in goal details and included in recovery checkpoints.
 Store concise operational conclusions, never hidden reasoning traces. Full evidence belongs in
 sanitized repository files referenced by the record. Existing goals receive this policy on their
-next normal turn; updating does not discard their evidence, change preferences or force an early
+next normal turn; updating does not discard their evidence, change base-model preferences or force an early
 paid turn while a known deadline is pending.
 
 ## Reflection and escalation
@@ -87,7 +87,7 @@ latest useful advice. The same advisor may revisit an updated dossier. Persisted
 replaying a request after restart, including failed calls. Counts and rephrased justifications cannot
 replace new evidence.
 
-Optional **Scoped expert execution** also requires **Diagnostic advisor**, useful prior advice,
+Scoped expert execution is an internal capability, available without a toggle. It requires useful prior advice,
 evidenced recommendation trials and an explicit narrow scope/value assessment. It grants one bounded
 working turn, never a persistent change of model. It cannot complete the overall goal or replace its
 work plan. The base model resumes to inspect the changes, follow-ups and evidence. Existing tests,
@@ -100,3 +100,18 @@ These controls improve continuity and action selection; they cannot guarantee co
 exhaustive research, access to unavailable services or higher model capability. Evidence references
 and model-authored assessments still require verification. Pausing/cancelling, authentication,
 provider restrictions, approvals and immutable criteria always retain precedence.
+
+
+## Integrated defaults (0.5)
+
+The normal execution form exposes Model, Reasoning and Fast only. Advisory and scoped assistance
+are always available to the policy, including for pre-existing goals with old opt-in flags set false.
+Availability never bypasses the evidence floors, explicit expected-value assessment, read-only-first
+rule, meaningful new evidence requirement, cooldown or durable reservations. Prefer useful research,
+independent work, a simpler experiment or same-model higher reasoning when sufficient. A stronger
+model is never a background polling mechanism. Human input is reserved for actual human-only actions.
+
+Updating does not wake waiting goals, clear blocked state, recreate goals or resume a paused instance.
+The next normal turn receives the integrated policy. A blocked goal still needs its actual dependency
+resolved. Retirement of opt-in flags changes capability availability, not immutable criteria or the
+selected working model. See [integrated operation](INTEGRATED_OPERATION.md).

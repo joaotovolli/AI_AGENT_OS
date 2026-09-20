@@ -1,4 +1,4 @@
-"""Opt-in status-issue follow-ups. GitHub text is context, never a control API."""
+"""Authorized status-issue follow-ups. GitHub text is context, never a control API."""
 import time
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -24,7 +24,7 @@ class OperatorChannel:
     def authorized(self, repo, comment, settings):
         user = comment.get("user") or {}
         login = user.get("login", "")
-        allowed = settings["github_operators"] or [repo.split("/")[0]]
+        allowed = [repo.split("/")[0], *settings["github_operators"]]
         if user.get("type") != "User" or login.casefold() not in {u.casefold() for u in allowed}:
             return False
         permission = self.github.gh(f"repos/{repo}/collaborators/{quote(login, safe='')}/permission")
@@ -62,7 +62,7 @@ class OperatorChannel:
     def poll(self):
         settings = load(self.state.root)
         now = time.time()
-        if not settings["github_followups"] or now - self.state.get("operator_last_poll", 0) < settings["github_progress_seconds"]:
+        if now - self.state.get("operator_last_poll", 0) < settings["github_progress_seconds"]:
             return
         self.state.set("operator_last_poll", now)
         try:
