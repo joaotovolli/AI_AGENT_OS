@@ -72,6 +72,11 @@ def selection(settings, action):
     return next((c for c in candidates(settings, models) if c["model"] != settings["model"]), None)
 
 
+def advice_id(entry):
+    # Git history recovery rewrites event keys; this explicit ID survives export/restore.
+    return entry["data"].get("advice_id", entry["event_key"])
+
+
 def eligible(worker, goal, settings, actions):
     if not settings["diagnostic_escalation"] or worker.cancelled(goal["id"]):
         return None
@@ -94,7 +99,7 @@ def eligible(worker, goal, settings, actions):
         if not last["data"].get("evidence_fingerprint") and not record["advice_outcomes"]:
             return None
     advice = [e for e in relevant if e["kind"] == "advisor_advice"]
-    if advice and not any(o["advice_id"] == advice[-1]["event_key"] and o["result"] and o["evidence"]
+    if advice and not any(o["advice_id"] == advice_id(advice[-1]) and o["result"] and o["evidence"]
                           for o in record["advice_outcomes"]):
         return None
     return record, interventions, fingerprint
@@ -138,7 +143,7 @@ No raw transcripts, secrets or reasoning traces. The base model will decide and 
         previous = {e["data"].get("next_action") for e in interventions if e["kind"] == "advisor_advice" and e["data"].get("blocker_key") == blocker}
         if result.get("ok") and advice and advice not in previous and not cancel():
             worker.state.note(goal["id"], run_id + ":result", "advisor_advice", dict(choice, blocker_key=blocker,
-                              summary=text(result["result"]["summary"]), next_action=advice))
+                              advice_id=run_id + ":result", summary=text(result["result"]["summary"]), next_action=advice))
         else:
             worker.state.note(goal["id"], run_id + ":result", "advisor_failed", dict(choice, blocker_key=blocker,
                               summary="Consultation was unavailable, interrupted or added no distinct advice; base ownership is unchanged."))
@@ -161,7 +166,7 @@ def delegation(worker, goal, settings):
         return None
     advice = [e for e in interventions if e["kind"] == "advisor_advice" and
               e["data"].get("blocker_key") == record["blocker_key"]]
-    if not advice or not any(o["advice_id"] == advice[-1]["event_key"] and o["result"] and o["evidence"]
+    if not advice or not any(o["advice_id"] == advice_id(advice[-1]) and o["result"] and o["evidence"]
                             for o in record["advice_outcomes"]):
         return None
     choice = selection(settings, "delegate")

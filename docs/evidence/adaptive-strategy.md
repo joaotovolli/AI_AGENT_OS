@@ -26,8 +26,8 @@ Commands: `python3 -m unittest discover -s tests -v`, `python3 -m compileall -q 
 `bash -n scripts/install-wsl.sh`, `node --check agent_os/static/app.js`,
 `python3 scripts/check_repository.py`. CI repeats regression on Python 3.11, 3.12 and 3.13 and runs
 `tests/browser_smoke.cjs` in Chromium. The initial implementation passed 122 tests and all four CI
-jobs. The final revision extends the suite to 125 tests, including scoped failure/restart, aggregate
-refinement, strict result validation and persistent strategic dashboard details.
+jobs. The final revision extends the suite to 126 tests, including scoped failure/restart, aggregate
+refinement, strict result validation, advice IDs preserved across Git recovery and persistent dashboard details.
 
 ## Practical limits
 

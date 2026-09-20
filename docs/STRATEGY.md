@@ -54,7 +54,7 @@ no update is needed, including read-only review and advisory results. Each recor
 - `not_before`, `expected_by`, `timing_source` and `human_dependency`; use zero/empty when inapplicable.
 - `escalation`: `request_id`, focused `question`, `exhaustion`, `clarity`, `expected_value` and optional
   execution `scope`. Use empty strings where no escalation is requested.
-- `advice_outcomes`: key, `advice_id` (the advisor event key), action tried, result and evidence.
+- `advice_outcomes`: key, `advice_id` (the advisor data ID, or legacy event key), action tried, result and evidence.
 
 Findings, approaches, preparation and advice outcomes merge by stable key, so omitted conclusions
 survive future turns. Reopening an abandoned method, even under another key, requires new evidence.

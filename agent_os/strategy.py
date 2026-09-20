@@ -266,7 +266,7 @@ Missing information calls for research; schedules for waiting; complex conceptua
 consult_reasoning (same model, higher effort); narrowed exhausted technical problems may warrant
 consult_model (read-only advice). Counts are only safety floors, never reasons to escalate.
 Supply a focused escalation question and concise operational evidence, never private reasoning traces.
-Apply advice with judgment and record advice_outcomes using the advisor_advice event_key as advice_id.
+Apply advice with judgment and record advice_outcomes using advisor_advice data.advice_id (or legacy event_key) as advice_id.
 A later consultation needs a new request_id, recommendation trials and new evidence. An advisor may
 recommend no further escalation. Only after useful advice and attempted recommendations, consider
 an explicitly justified delegate request with a narrow scope, if scoped execution is operator-enabled.

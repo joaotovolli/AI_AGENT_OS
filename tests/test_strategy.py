@@ -268,6 +268,15 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
         with patch('agent_os.advisor.config.available_models',return_value=self.catalog):
             self.assertIsNone(advisor.delegation(self.worker,self.goal,self.settings))
 
+    def test_recovered_history_keeps_advice_outcomes_linked_by_stable_id(self):
+        self.state.note(self.gid,'restored:history:1','advisor_advice',
+                        dict(blocker_key='parser',advice_id='original-advice',next_action='Test boundary'),at=time.time()-5000)
+        value=record('delegate',advice_outcomes=[dict(key='trial',advice_id='original-advice',action='Test boundary',
+                    result='Mismatch remains',evidence='docs/evidence/trial.md')])
+        value['escalation']['scope']='Repair boundary only';self.save(value)
+        with patch('agent_os.advisor.config.available_models',return_value=self.catalog):
+            self.assertIsNotNone(advisor.delegation(self.worker,self.goal,self.settings))
+
     def test_pause_and_context_change_discard_advisor_output(self):
         self.save(record('consult_model'))
         with patch('agent_os.advisor.config.available_models',return_value=self.catalog),patch('agent_os.advisor.Codex') as cli:
