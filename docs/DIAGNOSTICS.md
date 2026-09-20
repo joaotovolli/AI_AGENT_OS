@@ -58,7 +58,6 @@ Advanced settings can be changed with `python3 -m agent_os settings --json '<JSO
 | `diagnostic_min_attempts` | `3` | Evidence safety floor; never an automatic trigger |
 | `diagnostic_cooldown_seconds` | `3600` | Minimum interval between consultations |
 | `diagnostic_timeout_seconds` | `180` | Maximum duration of one consultation |
-
 | `strategic_delegation` | `true` | Retired compatibility flag; scoped execution still requires useful advice/trials and explicit value |
 | `delegation_timeout_seconds` | `600` | Maximum duration of that scoped turn |
 
