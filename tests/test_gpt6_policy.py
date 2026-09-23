@@ -55,20 +55,28 @@ class GPT6PolicyTests(unittest.TestCase):
             self.assertEqual([m["id"] for m in config.available_models()],
                              ["gpt-6-luna", "gpt-6-sol", "gpt-6-astra"])
 
-    def test_advisor_prefers_luna_high_then_stronger_gpt6_models(self):
+    def test_advisor_progresses_luna_high_then_sol_high_then_astra_high(self):
         settings = config.load(self.root)
         catalog = [
             {"id": "gpt-6-luna", "reasoning": ["medium", "high"]},
             {"id": "gpt-6-sol", "reasoning": ["medium", "high"]},
             {"id": "gpt-6-astra", "reasoning": ["medium", "high"]},
         ]
+        luna = {"kind": "advisor_started", "data": {"model": "gpt-6-luna", "reasoning": "high"}}
+        sol = {"kind": "advisor_started", "data": {"model": "gpt-6-sol", "reasoning": "high"}}
+        sol_delegation = {"kind": "delegation_started", "data": {"model": "gpt-6-sol", "reasoning": "high"}}
         with patch("agent_os.advisor.config.available_models", return_value=catalog):
             self.assertEqual(advisor.selection(settings, "consult_reasoning"),
                              {"model": "gpt-6-luna", "reasoning": "high"})
-        self.assertEqual(advisor.candidates(settings, catalog)[:2], [
-            {"model": "gpt-6-sol", "reasoning": "high"},
-            {"model": "gpt-6-astra", "reasoning": "high"},
-        ])
+            self.assertIsNone(advisor.selection(settings, "consult_reasoning", [luna]))
+            self.assertEqual(advisor.selection(settings, "consult_model", [luna]),
+                             {"model": "gpt-6-sol", "reasoning": "high"})
+            self.assertEqual(advisor.selection(settings, "consult_model", [luna, sol]),
+                             {"model": "gpt-6-astra", "reasoning": "high"})
+            self.assertEqual(advisor.selection(settings, "delegate", [sol]),
+                             {"model": "gpt-6-sol", "reasoning": "high"})
+            self.assertEqual(advisor.selection(settings, "delegate", [sol, sol_delegation]),
+                             {"model": "gpt-6-astra", "reasoning": "high"})
 
 
 if __name__ == "__main__":
