@@ -39,22 +39,30 @@ reasons to buy more inference.
 
 ## Selecting an advisor
 
-Selection follows installed catalog upgrade suggestions automatically. Advanced deployments may
-retain ordered `diagnostic_models` preferences through the settings CLI. Stale or unavailable
-preferences fall back to catalog suggestions. Choices must exist in the installed Codex model catalog and explicitly
-support the chosen reasoning level. `consult_reasoning` selects the next catalog-supported higher effort for the current model;
-`consult_model` selects a different model. Without preferences, the controller follows explicit catalog upgrade suggestions. It
-does not infer capability from model names or silently try guessed IDs. If no suitable
-candidate is known, history records that limitation and the configured worker stays in control.
-Catalog presence is not proof of live entitlement; actual CLI failures are recorded without
-silently replacing the worker or bypassing provider limits.
+The standard policy is now GPT-6 only. Normal work starts on `gpt-6-luna` with `medium` reasoning.
+A same-model consultation can move to Luna `high`. Stronger-model preferences are ordered as
+`gpt-6-sol` `high`, then `gpt-6-astra` `high`. Astra is therefore a last-resort diagnostic option,
+not a normal worker model or a reason to skip research, experimentation or cheaper escalation.
+
+The controller still requires every candidate to exist in the installed Codex model catalog and to
+explicitly support the requested reasoning level. Catalog presence is not proof of live entitlement;
+actual CLI failures are recorded without silently replacing the worker or bypassing provider limits.
+The catalog view used for automatic selection is filtered to GPT-6 Luna, Sol and Astra. Legacy
+GPT-5.6 defaults are migrated when settings are loaded, and Terra preferences are removed from
+automatic diagnostic selection.
+
+Advanced deployments may override the ordered `diagnostic_models` preferences through the settings
+CLI, but automatic policy keeps only supported GPT-6 family candidates. `consult_reasoning` uses a
+higher effort on the current model when available; `consult_model` selects a different GPT-6 model.
+If no suitable candidate is known, history records that limitation and the configured worker stays
+in control.
 
 Advanced settings can be changed with `python3 -m agent_os settings --json '<JSON object>'`:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `diagnostic_escalation` | `true` | Retired compatibility flag; core policy ignores legacy false values |
-| `diagnostic_models` | `[]` | Optional advanced preferences; catalog selection works without them |
+| `diagnostic_models` | Sol High, then Astra High | Ordered GPT-6 stronger-model preferences |
 | `diagnostic_min_attempts` | `3` | Evidence safety floor; never an automatic trigger |
 | `diagnostic_cooldown_seconds` | `3600` | Minimum interval between consultations |
 | `diagnostic_timeout_seconds` | `180` | Maximum duration of one consultation |
