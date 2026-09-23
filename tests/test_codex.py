@@ -84,6 +84,11 @@ class CodexTests(unittest.TestCase):
         settings["fast"] = False
         self.assertIn('service_tier="default"', command(settings, self.root, "schema", "output"))
 
+    def test_execution_command_rejects_every_non_gpt6_model(self):
+        settings = dict(DEFAULTS, model="gpt-5.6-luna")
+        with self.assertRaisesRegex(ValueError, "GPT-6"):
+            command(settings, self.root, "schema", "output")
+
     def test_failure_classification(self):
         self.assertEqual(classify_error("401 unauthorized"), "authentication")
         self.assertEqual(classify_error("Model not supported"), "configuration")

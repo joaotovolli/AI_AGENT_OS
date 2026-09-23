@@ -136,7 +136,7 @@ class ProgressTests(ProgressFixture, unittest.TestCase):
         self.assertNotEqual(self.state.goal(self.gid)["status"], "completed")
 
     def test_new_settings_leave_retained_runtime_config_readable(self):
-        config.save(self.root, {"external_repeat_limit": 4, "model": "custom"})
+        config.save(self.root, {"external_repeat_limit": 4, "model": "gpt-6-sol"})
         legacy = json.loads((self.root/".agent-os/config.json").read_text())
         features = json.loads((self.root/".agent-os/features.json").read_text())
         self.assertNotIn("external_repeat_limit", legacy)

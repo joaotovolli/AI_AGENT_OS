@@ -52,9 +52,10 @@ class StateTests(unittest.TestCase):
 
     def test_settings_validation_and_roundtrip(self):
         self.assertEqual(config.load(self.root)["model"], "gpt-6-luna")
-        config.save(self.root, {"model": "custom-model-2027", "reasoning": "medium", "fast": True})
+        config.save(self.root, {"model": "gpt-6-sol", "reasoning": "medium", "fast": True})
         self.assertTrue(config.load(self.root)["fast"])
-        for update in ({"port": True}, {"fast": "false"}, {"model": "abc; bad"}, {"unknown": 1}, {"idle_seconds": 0}):
+        for update in ({"port": True}, {"fast": "false"}, {"model": "gpt-5.6-luna"},
+                       {"model": "custom-model-2027"}, {"unknown": 1}, {"idle_seconds": 0}):
             with self.assertRaises(ValueError):
                 config.save(self.root, update)
 

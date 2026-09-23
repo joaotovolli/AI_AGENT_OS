@@ -52,7 +52,7 @@ def candidates(settings, models):
     result = []
     for choice in choices:
         model, reasoning = choice["model"], choice["reasoning"]
-        if model not in catalog or reasoning not in catalog[model].get("reasoning", []):
+        if model not in config.GPT6_MODELS or model not in catalog or reasoning not in catalog[model].get("reasoning", []):
             continue
         if model == settings["model"]:
             if (reasoning not in efforts or settings["reasoning"] not in efforts

@@ -1,10 +1,10 @@
 # Codex model and execution settings
 
 Default: `gpt-6-luna`, `model_reasoning_effort="medium"`, standard service tier. The dashboard
-accepts a free-form model ID and reasoning value. Its local model suggestions and automatic
-escalation policy are restricted to the current GPT-6 family: `gpt-6-luna`, `gpt-6-sol` and
-`gpt-6-astra`. Availability is ultimately determined by the installed CLI and authenticated
-account. An unavailable model is reported, never silently replaced.
+allows only `gpt-6-luna`, `gpt-6-sol` and `gpt-6-astra`. The settings API, automatic advisor
+selection and final Codex command boundary enforce the same allowlist. Availability is ultimately
+determined by the installed CLI and authenticated account. An unavailable model is reported,
+never silently replaced.
 
 A normal working command is constructed as an argument array, with the prompt on stdin:
 
@@ -34,12 +34,13 @@ decision rather than an attempt-count trigger:
 1. `gpt-6-luna` with `high` reasoning for a harder same-model consultation.
 2. `gpt-6-sol` with `high` reasoning for a materially stronger bounded consultation or scoped turn.
 3. `gpt-6-astra` with `high` reasoning only when the stronger GPT-6 path is justified by the
-   existing exhaustion, evidence, cost/value and cooldown gates, or when Sol is unavailable.
+   existing exhaustion, evidence, cost/value and cooldown gates. Model availability alone never
+   justifies escalation.
 
-GPT-5.6 defaults are migrated when an upgraded instance loads its settings. Legacy Terra diagnostic
-preferences are not used for automatic escalation. The controller filters its non-secret Codex
-catalog view to Luna, Sol and Astra for automatic model selection, while preserving explicit
-operator control of the normal Model field.
+Persisted GPT-5.6 defaults migrate when an upgraded instance loads its settings. Legacy Terra
+diagnostic preferences migrate to the GPT-6 escalation defaults. Non-GPT-6 settings are rejected,
+and the final Codex command adapter checks the allowlist again. The controller filters its
+non-secret Codex catalog view to Luna, Sol and Astra for automatic model selection.
 
 JSONL events drive live progress. `turn.completed` usage is accumulated for this instance. The
 application does not claim to know the account's remaining weekly allowance. An exhausted quota

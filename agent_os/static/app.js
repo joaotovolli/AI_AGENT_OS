@@ -110,7 +110,6 @@ function paint(data) {
   for(const e of data.events.slice(0,24)){const row=node('div',undefined,'event');row.append(node('time',new Date(e.at*1000).toLocaleTimeString('en-GB')),node('span',e.message));$('events').append(row);}
   if(!settingsLoaded){$('model').value=data.settings.model;$('reasoning').value=data.settings.reasoning;$('fast').checked=data.settings.fast;
     settingsLoaded=true;
-    const ids=new Set([...$('model-options').options].map(o=>o.value));for(const m of data.models){if(!ids.has(m.id)){const o=node('option');o.value=m.id;$('model-options').append(o);ids.add(m.id);}}
   }
   $('usage').textContent=((data.usage.input_tokens||0)+(data.usage.output_tokens||0)).toLocaleString('en-GB');
   $('last-refresh').textContent='Updated '+new Date().toLocaleTimeString('en-GB');

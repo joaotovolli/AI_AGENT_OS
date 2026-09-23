@@ -59,8 +59,8 @@
       </section>
       <section class="panel" id="settings"><p class="eyebrow">CODEX EXEC</p><h2>Model and execution</h2>
         <form id="settings-form">
-          <label for="model">Model</label><input id="model" list="model-options" required><datalist id="model-options"><option value="gpt-5.6-luna"><option value="gpt-5.6-terra"><option value="gpt-5.6-sol"><option value="gpt-6-astra"><option value="gpt-5.5"></datalist>
-          <p class="muted">Choose or enter any model ID supported by your Codex.</p>
+          <label for="model">Model</label><select id="model" required><option value="gpt-6-luna">gpt-6-luna</option><option value="gpt-6-sol">gpt-6-sol</option><option value="gpt-6-astra">gpt-6-astra</option></select>
+          <p class="muted">Only GPT-6 models can be selected. Unavailable models are reported without fallback.</p>
           <label for="reasoning">Reasoning</label><input id="reasoning" list="reasoning-options" required><datalist id="reasoning-options"><option value="minimal"><option value="low"><option value="medium"><option value="high"><option value="xhigh"><option value="max"></datalist>
           <label class="switch-row" for="fast"><span><strong>Fast</strong><small>Uses the Fast tier when available for your account and model.</small></span><input type="checkbox" id="fast" role="switch"></label>
           <p class="muted">Agent OS manages strategic research, waiting, advisory escalation and bounded expert assistance when useful. The configured model remains the normal goal owner.</p>

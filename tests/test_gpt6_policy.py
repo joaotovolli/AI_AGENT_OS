@@ -42,6 +42,16 @@ class GPT6PolicyTests(unittest.TestCase):
         self.assertEqual(settings["model"], "gpt-6-luna")
         self.assertEqual(settings["diagnostic_models"], config.GPT6_ESCALATION)
 
+    def test_non_gpt6_models_are_rejected_at_configuration_and_advisor_boundaries(self):
+        for model in ("gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.5", "gpt-reserve", "custom-model"):
+            with self.subTest(model=model), self.assertRaises(ValueError):
+                config.save(self.root, {"model": model})
+        with self.assertRaises(ValueError):
+            config.save(self.root, {"diagnostic_models": [{"model": "gpt-5.6-sol", "reasoning": "high"}]})
+        settings = dict(config.load(self.root), diagnostic_models=[{"model": "gpt-5.6-sol", "reasoning": "high"}])
+        models = [{"id": "gpt-5.6-sol", "reasoning": ["high"]}]
+        self.assertEqual(advisor.candidates(settings, models), [])
+
     def test_catalog_exposes_only_gpt6_family_for_automatic_selection(self):
         cache = self.root / "models_cache.json"
         cache.write_text(json.dumps({"models": [

@@ -21,7 +21,7 @@ class IntegratedAutonomyTests(unittest.TestCase):
         self.goal=self.state.add_goal('Goal','Task','Original evidence');seed(self.state,self.goal)
 
     def legacy(self):
-        config.save(self.root,{'model':'base-model','reasoning':'medium','fast':True})
+        config.save(self.root,{'model':'gpt-6-luna','reasoning':'medium','fast':True})
         folder=self.root/'.agent-os'
         for name,flags in [('features.json',{'diagnostic_escalation':False,'github_followups':False}),
                            ('strategy-settings.json',{'strategic_delegation':False})]:
@@ -37,13 +37,13 @@ class IntegratedAutonomyTests(unittest.TestCase):
         before=self.state.goal(self.goal['id']);progress=self.state.export_progress()
         settings=config.load(self.root);fresh=State(self.root);fresh.recover()
         self.assertTrue(all(settings[k] for k in config.RETIRED_FLAGS))
-        self.assertEqual((settings['model'],settings['reasoning'],settings['fast']),('base-model','medium',True))
+        self.assertEqual((settings['model'],settings['reasoning'],settings['fast']),('gpt-6-luna','medium',True))
         self.assertEqual(fresh.goal(self.goal['id']),before);self.assertEqual(fresh.export_progress(),progress)
         self.assertTrue(fresh.get('paused'));self.assertEqual(fresh.history(self.goal['id'])[-1]['data']['request_id'],'already-used')
         with patch('agent_os.worker.Codex.run') as cli:
             self.worker.tick();cli.assert_not_called()
         self.assertIn('core capabilities, not feature toggles',self.worker.prompt(before))
-        self.assertEqual(config.save(self.root,{k:False for k in config.RETIRED_FLAGS})['model'],'base-model')
+        self.assertEqual(config.save(self.root,{k:False for k in config.RETIRED_FLAGS})['model'],'gpt-6-luna')
         self.assertTrue(all(config.load(self.root)[k] for k in config.RETIRED_FLAGS))
 
     def test_defaults_do_not_escalate_without_explicit_evidence_backed_decision(self):
@@ -56,24 +56,24 @@ class IntegratedAutonomyTests(unittest.TestCase):
 
     def test_catalog_selects_available_upgrade_without_dashboard_preferences(self):
         settings=config.load(self.root)
-        catalog=[{'id':settings['model'],'reasoning':['medium','high'],'upgrade':'expert'},
-                 {'id':'expert','reasoning':['high'],'default_reasoning':'high'}]
+        catalog=[{'id':settings['model'],'reasoning':['medium','high'],'upgrade':'gpt-6-sol'},
+                 {'id':'gpt-6-sol','reasoning':['high'],'default_reasoning':'high'}]
         with patch('agent_os.advisor.config.available_models',return_value=catalog):
-            self.assertEqual(advisor.selection(settings,'consult_model'),{'model':'expert','reasoning':'high'})
+            self.assertEqual(advisor.selection(settings,'consult_model'),{'model':'gpt-6-sol','reasoning':'high'})
             self.assertEqual(advisor.selection(settings,'consult_reasoning'),{'model':settings['model'],'reasoning':'high'})
-            self.assertEqual(advisor.selection(dict(settings,diagnostic_models=[{'model':'unavailable','reasoning':'high'}]),'consult_model')['model'],'expert')
+            self.assertEqual(advisor.selection(dict(settings,diagnostic_models=[{'model':'gpt-6-astra','reasoning':'high'}]),'consult_model')['model'],'gpt-6-sol')
         self.assertEqual(config.load(self.root),settings)
 
     def test_justified_advice_runs_with_automatic_selection_and_no_feature_setup(self):
         settings=config.load(self.root)
         strategy.save(self.state,self.goal['id'],[record('consult_model')])
-        catalog=[{'id':settings['model'],'reasoning':['medium','high'],'upgrade':'expert'},
-                 {'id':'expert','reasoning':['high'],'default_reasoning':'high'}]
+        catalog=[{'id':settings['model'],'reasoning':['medium','high'],'upgrade':'gpt-6-sol'},
+                 {'id':'gpt-6-sol','reasoning':['high'],'default_reasoning':'high'}]
         with patch('agent_os.advisor.config.available_models',return_value=catalog),patch('agent_os.advisor.Codex') as cli:
             cli.return_value.run.return_value={'ok':True,'result':{'summary':'Inspect the boundary','next_action':'Try a documented encoding fixture'}}
             advisor.consult(self.worker,self.goal,settings)
             self.assertTrue(cli.return_value.run.call_args.kwargs['readonly'])
-            self.assertEqual(cli.call_args.args[1]['model'],'expert')
+            self.assertEqual(cli.call_args.args[1]['model'],'gpt-6-sol')
             advisor.consult(self.worker,self.goal,settings)
             self.assertEqual(cli.return_value.run.call_count,1)
         self.assertEqual(config.load(self.root),settings)

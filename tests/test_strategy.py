@@ -172,11 +172,11 @@ class StrategyTests(StrategyFixture, unittest.TestCase):
             self.assertNotIn('strategic_delegation', json.loads((self.root/'.agent-os'/filename).read_text()))
 
     def test_reasoning_and_model_escalation_are_separate_catalog_resources(self):
-        settings=dict(config.DEFAULTS, diagnostic_models=[dict(model='expert',reasoning='high')])
-        catalog=[dict(id=settings['model'],reasoning=['medium','high']),dict(id='expert',reasoning=['high'])]
+        settings=dict(config.DEFAULTS, diagnostic_models=[dict(model='gpt-6-sol',reasoning='high')])
+        catalog=[dict(id=settings['model'],reasoning=['medium','high']),dict(id='gpt-6-sol',reasoning=['high'])]
         with patch('agent_os.advisor.config.available_models', return_value=catalog):
             self.assertEqual(advisor.selection(settings,'consult_reasoning'),dict(model=settings['model'],reasoning='high'))
-            self.assertEqual(advisor.selection(settings,'consult_model'),dict(model='expert',reasoning='high'))
+            self.assertEqual(advisor.selection(settings,'consult_model'),dict(model='gpt-6-sol',reasoning='high'))
 
     def test_worker_executes_preparation_before_external_recheck(self):
         self.worker.github=FakeGitHub(self.state);self.worker.heartbeat=lambda:None;self.worker.promote_and_deploy=lambda:None
@@ -194,8 +194,8 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.settings=config.save(self.root, {'diagnostic_escalation':True,'strategic_delegation':True,
-                                    'diagnostic_models':[dict(model='expert',reasoning='high')]})
-        self.catalog=[dict(id='expert',reasoning=['high'])]
+                                    'diagnostic_models':[dict(model='gpt-6-sol',reasoning='high')]})
+        self.catalog=[dict(id='gpt-6-sol',reasoning=['high'])]
 
     def prior_advice(self):
         self.state.note(self.gid,'advice-1','advisor_advice',dict(blocker_key='parser',next_action='Test a byte boundary'),at=time.time()-5000)
@@ -239,7 +239,7 @@ class EscalationTests(StrategyFixture, unittest.TestCase):
         with patch('agent_os.advisor.config.available_models',return_value=self.catalog),patch('agent_os.worker.Codex') as cli,patch('agent_os.worker.checks.verify',return_value=([{'passed':True}],'')):
             cli.return_value.run.return_value=success()  # A helper completion claim is never overall completion.
             self.worker.tick()
-            self.assertEqual(cli.call_args.args[1]['model'],'expert')
+            self.assertEqual(cli.call_args.args[1]['model'],'gpt-6-sol')
             self.assertEqual(cli.call_args.args[1]['step_timeout_seconds'],600)
             self.assertEqual(self.state.goal(self.gid)['status'],'queued')
             self.assertFalse(self.state.get('pending_completion'))

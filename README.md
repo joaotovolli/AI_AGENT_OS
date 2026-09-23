@@ -40,7 +40,7 @@ shortcut opens it with local authentication. The interface, documentation, promp
 | Full WSL2 administration | Working Codex turns run without the Codex sandbox or approval prompts. Installation configures unattended sudo for the Linux user. |
 | GitHub records every attempt | Code, sanitized goal state and progress checkpoints go to an instance working branch; tested changes advance the stable branch. |
 | Instructions live in GitHub | Installation, access, operation, recovery and host changes are documented in Markdown and reproducible scripts. |
-| Choose the Codex model | Default `gpt-6-luna`, reasoning `medium`; normal automatic escalation stays in GPT-6: Luna High, then Sol High, with Astra High reserved for exceptional diagnostic use. Free-form operator settings remain available, with no silent fallback. |
+| Choose the Codex model | Default `gpt-6-luna`, reasoning `medium`; only Luna, Sol and Astra can be selected. Escalation is Luna High, then Sol High, with Astra High reserved for exceptional diagnostic use. No silent fallback. |
 | Persist until completion | SQLite state, process recovery, bounded individual turns, unlimited subsequent attempts and explicit verification. |
 | GitHub operator follow-ups | Opt-in, authorized status-issue comments enter the goal queue with durable receipts and replies. |
 | Per-goal diagnostics | Compact history survives the live activity window and is published separately for each goal. |

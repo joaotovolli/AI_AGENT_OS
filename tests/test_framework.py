@@ -59,7 +59,7 @@ class FrameworkTests(unittest.TestCase):
         self.state = State(self.root)
         self.state.set("paused", True)
         self.goal = self.state.add_goal("Preserve this goal", "Task", "Evidence")
-        self.settings = config.save(self.root, {"model": "custom-worker", "github_followups": True})
+        self.settings = config.save(self.root, {"model": "gpt-6-luna", "github_followups": True})
         self.secret = config.token(self.root)
         self.original_runtime = deploy.activate(self.root)
         self.updater = Framework(self.root, self.state)

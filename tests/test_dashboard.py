@@ -64,10 +64,12 @@ class DashboardTests(unittest.TestCase):
         state = State(self.root)
         goal = state.add_goal("Goal", "Work", "Evidence")
         state.update_goal(goal["id"], status="waiting", next_run=9999999999)
-        self.assertEqual(self.request("/api/settings", {"model":"new-custom-model","fast":True})[0], 200)
+        self.assertEqual(self.request("/api/settings", {"model":"gpt-6-astra","fast":True})[0], 200)
         self.assertEqual(State(self.root).goal(goal["id"])["next_run"], 0)
         self.assertTrue(self.request("/api/state")[1]["settings"]["fast"])
+        self.assertEqual(self.request("/api/state")[1]["settings"]["model"], "gpt-6-astra")
         self.assertEqual(self.request("/api/settings", {"port":9000})[0], 400)
+        self.assertEqual(self.request("/api/settings", {"model":"gpt-5.6-luna"})[0], 400)
 
     def test_invalid_input_and_static_paths(self):
         self.assertEqual(self.request("/api/goals", {"title":""})[0], 400)
@@ -75,6 +77,10 @@ class DashboardTests(unittest.TestCase):
         status, html = self.request("/", auth=False)
         self.assertEqual(status, 200)
         self.assertIn('id="goal-form"', html)
+        self.assertIn('value="gpt-6-luna"', html)
+        self.assertIn('value="gpt-6-sol"', html)
+        self.assertIn('value="gpt-6-astra"', html)
+        self.assertNotIn("gpt-5", html)
         self.assertNotIn(self.secret, html)
 
     def test_history_requires_authentication_and_survives_cancellation(self):
@@ -93,7 +99,7 @@ class DashboardTests(unittest.TestCase):
 
     def test_feature_settings_and_blocked_goal_retry_preserve_pause(self):
         values = {"diagnostic_escalation": True, "github_followups": True, "github_operators": ["owner"],
-                  "diagnostic_models": [{"model": "advisor-model", "reasoning": "high"}]}
+                  "diagnostic_models": [{"model": "gpt-6-sol", "reasoning": "high"}]}
         self.assertEqual(self.request("/api/settings", values)[0], 200)
         state = State(self.root)
         self.assertGreater(state.get("operator_enabled_since"), 0)

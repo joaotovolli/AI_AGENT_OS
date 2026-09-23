@@ -18,8 +18,8 @@ class AdvisorTests(unittest.TestCase):
         self.worker = Worker(self.root)
         self.goal = self.worker.state.add_goal("Goal", "Task", "Evidence")
         self.settings = config.save(self.root, {"diagnostic_escalation": True,
-                      "diagnostic_models": [{"model": "advisor-model", "reasoning": "high"}]})
-        self.catalog = [{"id": "advisor-model", "reasoning": ["high"]}]
+                      "diagnostic_models": [{"model": "gpt-6-sol", "reasoning": "high"}]})
+        self.catalog = [{"id": "gpt-6-sol", "reasoning": ["high"]}]
         for i, method in enumerate(("trace", "minimal-reproduction", "dependency-review")):
             self.worker.state.note(self.goal["id"], str(i), "attempt", {"phase": "Import", "blocker_kind": "technical",
                         "blocker_key": "parser", "approach_key": method, "completed": "Input loaded", "progress_made": False})
@@ -71,7 +71,7 @@ class AdvisorTests(unittest.TestCase):
 
     def test_no_guessed_ranking_and_same_model_requires_higher_reasoning(self):
         self.assertEqual(advisor.candidates(dict(self.settings, diagnostic_models=[]), self.catalog), [])
-        self.assertEqual(advisor.candidates(self.settings, [{"id": "advisor-model", "reasoning": ["low"]}]), [])
+        self.assertEqual(advisor.candidates(self.settings, [{"id": "gpt-6-sol", "reasoning": ["low"]}]), [])
         preferences = [{"model": self.settings["model"], "reasoning": "low"}, {"model": self.settings["model"], "reasoning": "high"}]
         choices = advisor.candidates(dict(self.settings, diagnostic_models=preferences), [{"id": self.settings["model"], "reasoning": ["low", "high"]}])
         self.assertEqual(choices, preferences[1:])
@@ -88,7 +88,7 @@ class AdvisorTests(unittest.TestCase):
 
     def test_used_advisor_is_remembered_beyond_the_recent_history_window(self):
         self.worker.state.note(self.goal["id"], "old-reservation", "advisor_started",
-                               {"blocker_key": "parser", "model": "advisor-model", "reasoning": "high"}, at=time.time()-5000)
+                               {"blocker_key": "parser", "model": "gpt-6-sol", "reasoning": "high"}, at=time.time()-5000)
         for i in range(130):
             self.worker.state.note(self.goal["id"], "later"+str(i), "attempt",
                        {"blocker_kind": "technical", "blocker_key": "parser", "approach_key": "method"+str(i%3),

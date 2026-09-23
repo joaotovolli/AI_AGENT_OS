@@ -71,6 +71,8 @@ def validate(data):
     for key in ("model", "reasoning"):
         if key in data and (not isinstance(data[key], str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,119}", data[key])):
             raise ValueError(f"Invalid {key}")
+    if "model" in data and data["model"] not in GPT6_MODELS:
+        raise ValueError("Only supported GPT-6 models may be selected")
     for key in ("fast", "github_followups", "diagnostic_escalation", "strategic_delegation"):
         if key in data and type(data[key]) is not bool:
             raise ValueError(f"{key} must be true or false")
@@ -101,11 +103,22 @@ def validate(data):
 
 
 def _gpt6_policy(result):
-    """Migrate legacy defaults and keep automatic escalation inside the GPT-6 family."""
-    result["model"] = MODEL_MIGRATIONS.get(result["model"], result["model"])
-    preferences = [dict(v) for v in result.get("diagnostic_models", [])
-                   if v.get("model") not in MODEL_MIGRATIONS]
-    result["diagnostic_models"] = preferences or [dict(v) for v in GPT6_ESCALATION]
+    """Migrate legacy defaults and reject every non-GPT-6 execution preference."""
+    model = result.get("model")
+    if isinstance(model, str):
+        result["model"] = MODEL_MIGRATIONS.get(model, model)
+    models = result.get("diagnostic_models", [])
+    if isinstance(models, list) and all(isinstance(value, dict) and set(value) == {"model", "reasoning"}
+                                        for value in models):
+        legacy = any(isinstance(value["model"], str) and value["model"] in MODEL_MIGRATIONS for value in models)
+        unsupported = [value["model"] for value in models if not isinstance(value["model"], str) or
+                       value["model"] not in GPT6_MODELS and value["model"] not in MODEL_MIGRATIONS]
+        if unsupported:
+            raise ValueError("Only supported GPT-6 models may be used for automatic escalation")
+        preferences = [dict(value) for value in models if value["model"] in GPT6_MODELS]
+        result["diagnostic_models"] = preferences if preferences and not legacy else [dict(v) for v in GPT6_ESCALATION]
+        if not result["diagnostic_models"]:
+            result["diagnostic_models"] = [dict(v) for v in GPT6_ESCALATION]
     return result
 
 
@@ -122,6 +135,7 @@ def load(root):
         strategy = private_dir(root) / "strategy-settings.json"
         if strategy.exists():
             overrides.update(json.loads(strategy.read_text()))
+        _gpt6_policy(overrides)
         result = _gpt6_policy(dict(DEFAULTS, **validate(overrides)))
         # Legacy flags remain readable by retained runtimes, but cannot disable core policy.
         result.update({name: True for name in RETIRED_FLAGS})

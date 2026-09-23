@@ -6,7 +6,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from .config import atomic_json, private_dir
+from .config import GPT6_MODELS, atomic_json, private_dir
 from .process import terminate
 from .redact import redact
 from .history import BLOCKERS
@@ -103,6 +103,8 @@ def validate_result(data):
 
 
 def command(config, root, schema, output, readonly=False, executable="codex"):
+    if config.get("model") not in GPT6_MODELS:
+        raise ValueError("Codex execution is restricted to supported GPT-6 models")
     args = [executable, "exec", "--json", "--color", "never", "--model", config["model"],
             "-c", 'model_reasoning_effort=' + json.dumps(config["reasoning"]),
             "-c", 'service_tier=' + json.dumps("fast" if config["fast"] else "default")]
