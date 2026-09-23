@@ -6,8 +6,20 @@ import secrets
 import threading
 from pathlib import Path
 
+GPT6_MODELS = ("gpt-6-luna", "gpt-6-sol", "gpt-6-astra")
+GPT6_ESCALATION = [
+    {"model": "gpt-6-sol", "reasoning": "high"},
+    {"model": "gpt-6-astra", "reasoning": "high"},
+]
+MODEL_MIGRATIONS = {
+    "gpt-5.6-luna": "gpt-6-luna",
+    "gpt-5.6-sol": "gpt-6-sol",
+    "gpt-5.6-terra": "gpt-6-luna",
+    "gpt-5.6": "gpt-6-sol",
+}
+
 DEFAULTS = {
-    "model": "gpt-5.6-luna", "reasoning": "medium", "fast": False,
+    "model": "gpt-6-luna", "reasoning": "medium", "fast": False,
     "port": 8765, "idle_seconds": 3600, "step_timeout_seconds": 1800,
     "verify_timeout_seconds": 600, "retry_base_seconds": 15,
     "retry_max_seconds": 3600, "github_progress_seconds": 60,
@@ -15,7 +27,7 @@ DEFAULTS = {
 LEGACY_SETTINGS = frozenset(DEFAULTS)
 DEFAULTS.update({
     "github_followups": True, "github_operators": [],
-    "diagnostic_escalation": True, "diagnostic_models": [],
+    "diagnostic_escalation": True, "diagnostic_models": [dict(v) for v in GPT6_ESCALATION],
     "diagnostic_min_attempts": 3, "diagnostic_cooldown_seconds": 3600,
     "diagnostic_timeout_seconds": 180, "framework_check_seconds": 86400,
 })
@@ -88,6 +100,15 @@ def validate(data):
     return data
 
 
+def _gpt6_policy(result):
+    """Migrate legacy defaults and keep automatic escalation inside the GPT-6 family."""
+    result["model"] = MODEL_MIGRATIONS.get(result["model"], result["model"])
+    preferences = [dict(v) for v in result.get("diagnostic_models", [])
+                   if v.get("model") in GPT6_MODELS]
+    result["diagnostic_models"] = preferences or [dict(v) for v in GPT6_ESCALATION]
+    return result
+
+
 def load(root):
     path = private_dir(root) / "config.json"
     with _LOCK:
@@ -101,7 +122,7 @@ def load(root):
         strategy = private_dir(root) / "strategy-settings.json"
         if strategy.exists():
             overrides.update(json.loads(strategy.read_text()))
-        result = dict(DEFAULTS, **validate(overrides))
+        result = _gpt6_policy(dict(DEFAULTS, **validate(overrides)))
         # Legacy flags remain readable by retained runtimes, but cannot disable core policy.
         result.update({name: True for name in RETIRED_FLAGS})
         if result["external_wait_min_seconds"] > result["external_wait_max_seconds"]:
@@ -113,6 +134,7 @@ def save(root, updates):
     with _LOCK:
         config = load(root)
         config.update(validate(updates))
+        _gpt6_policy(config)
         config.update({name: True for name in RETIRED_FLAGS})
         if config["external_wait_min_seconds"] > config["external_wait_max_seconds"]:
             raise ValueError("External waiting minimum must not exceed its maximum")
@@ -146,18 +168,19 @@ def available_models():
             return []
         result = []
         for m in models:
-            if not isinstance(m, dict) or not (m.get("slug") or m.get("id")):
+            model_id = m.get("slug") or m.get("id") if isinstance(m, dict) else None
+            if not isinstance(m, dict) or model_id not in GPT6_MODELS:
                 continue
             levels = m.get("supported_reasoning_levels", m.get("supported_reasoning_efforts", []))
             if not isinstance(levels, list):
                 levels = []
             upgrade = m.get("upgrade") or {}
-            result.append({"id": m.get("slug", m.get("id")),
-                           "name": m.get("display_name", m.get("slug", m.get("id"))),
+            result.append({"id": model_id,
+                           "name": m.get("display_name", model_id),
                            "reasoning": [v.get("effort") if isinstance(v, dict) else v for v in levels
                                          if isinstance(v, (dict, str))],
                            "default_reasoning": m.get("default_reasoning_level", "medium"),
-                           "upgrade": upgrade.get("model") if isinstance(upgrade, dict) else None})
+                           "upgrade": upgrade.get("model") if isinstance(upgrade, dict) and upgrade.get("model") in GPT6_MODELS else None})
         return result
     except (OSError, ValueError, AttributeError):
         return []
