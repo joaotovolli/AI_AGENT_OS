@@ -51,7 +51,7 @@ class StateTests(unittest.TestCase):
                 self.state.add_goal(title, "Work", "Verify", commands)
 
     def test_settings_validation_and_roundtrip(self):
-        self.assertEqual(config.load(self.root)["model"], "gpt-5.6-luna")
+        self.assertEqual(config.load(self.root)["model"], "gpt-6-luna")
         config.save(self.root, {"model": "custom-model-2027", "reasoning": "medium", "fast": True})
         self.assertTrue(config.load(self.root)["fast"])
         for update in ({"port": True}, {"fast": "false"}, {"model": "abc; bad"}, {"unknown": 1}, {"idle_seconds": 0}):

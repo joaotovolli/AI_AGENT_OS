@@ -108,11 +108,11 @@ class HistoryProjectTests(unittest.TestCase):
     def test_catalog_metadata_is_optional_and_malformed_cache_fails_closed(self):
         cache = self.root / "models_cache.json"
         with patch.dict("os.environ", {"CODEX_HOME": str(self.root)}):
-            for value in ([], {"models": None}, {"models": [{"slug": "worker", "supported_reasoning_levels": None}]}):
+            for value in ([], {"models": None}, {"models": [{"slug": "gpt-6-luna", "supported_reasoning_levels": None}]}):
                 cache.write_text(json.dumps(value))
                 choices = config.available_models()
                 self.assertFalse(choices and choices[0]["reasoning"])
-            cache.write_text(json.dumps({"models": [{"slug": "worker", "supported_reasoning_levels": [{"effort": "high"}],
-                                                    "upgrade": {"model": "advisor"}}]}))
-            self.assertEqual(config.available_models()[0]["upgrade"], "advisor")
+            cache.write_text(json.dumps({"models": [{"slug": "gpt-6-luna", "supported_reasoning_levels": [{"effort": "high"}],
+                                                    "upgrade": {"model": "gpt-6-sol"}}]}))
+            self.assertEqual(config.available_models()[0]["upgrade"], "gpt-6-sol")
             self.assertEqual(config.available_models()[0]["reasoning"], ["high"])
