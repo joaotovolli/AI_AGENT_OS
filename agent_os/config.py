@@ -104,7 +104,7 @@ def _gpt6_policy(result):
     """Migrate legacy defaults and keep automatic escalation inside the GPT-6 family."""
     result["model"] = MODEL_MIGRATIONS.get(result["model"], result["model"])
     preferences = [dict(v) for v in result.get("diagnostic_models", [])
-                   if v.get("model") in GPT6_MODELS]
+                   if v.get("model") not in MODEL_MIGRATIONS]
     result["diagnostic_models"] = preferences or [dict(v) for v in GPT6_ESCALATION]
     return result
 
