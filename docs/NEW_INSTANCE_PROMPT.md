@@ -33,11 +33,13 @@ unrelated work and keep credentials private. Use existing valid GitHub and Codex
    its origin and port 8766 for the base name and port. Run bash scripts/install-wsl.sh 8766.
    Install Windows startup and dashboard shortcuts with the instance name ai_agent_os_1.
 
-4. Keep gpt-5.6-luna with medium reasoning as the default and Fast off. Verify actual Codex
-   authentication, model support, services and browser access. Follow bootstrap until its
-   evidence passes, then complete a small sample goal with independent review and GitHub sync.
-   Validate pause/resume, recovery and an early maintenance cycle. Leave hourly maintenance
-   enabled and the agent running for my first project goal.
+4. Keep gpt-6-luna with medium reasoning as the default and Fast off. Automatic strategic
+   escalation must remain inside GPT-6: Luna High, then Sol High, with Astra High reserved for
+   exceptional cases that pass the evidence and cost/value gates. Do not use GPT-5.6 or Terra
+   for automatic escalation. Verify actual Codex authentication, model support, services and
+   browser access. Follow bootstrap until its evidence passes, then complete a small sample goal
+   with independent review and GitHub sync. Validate pause/resume, recovery and an early maintenance
+   cycle. Leave hourly maintenance enabled and the agent running for my first project goal.
 
 5. Publish changes and English operating instructions to AI_AGENT_OS_1. Keep credentials,
    raw logs and local state private. Update ACCESS.md, VALIDATION.md and goal evidence in
@@ -47,7 +49,7 @@ unrelated work and keep credentials private. Use existing valid GitHub and Codex
 The instance is an independent copy. Do not automatically publish its project work back to
 AI_AGENT_OS or create additional instances without a separate instruction.
 
-Leave GitHub follow-ups and diagnostic escalation disabled unless I explicitly enable them.
-Verify their controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
+Keep integrated strategic assistance subject to its evidence, cooldown and cost/value gates.
+Verify its controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
 outputs and docs/FRAMEWORK_UPDATES.md for base provenance and future updates. Do not apply
 base updates to any other existing instance as part of this installation.
