@@ -62,15 +62,23 @@ def candidates(settings, models):
     return result
 
 
-def selection(settings, action):
+def selection(settings, action, prior=None):
+    """Choose the next unused escalation level for this blocker and intervention type."""
     models = config.available_models()
+    prior = prior or []
     if action == "consult_reasoning":
         efforts = ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]
         current = settings["reasoning"]
         available = next((m.get("reasoning", []) for m in models if m["id"] == settings["model"]), [])
         levels = [r for r in efforts if r in available and current in efforts and efforts.index(r) > efforts.index(current)]
-        return {"model": settings["model"], "reasoning": levels[0]} if levels else None
-    return next((c for c in candidates(settings, models) if c["model"] != settings["model"]), None)
+        choice = {"model": settings["model"], "reasoning": levels[0]} if levels else None
+        used = {(e["data"].get("model"), e["data"].get("reasoning")) for e in prior
+                if e.get("kind") == "advisor_started"}
+        return choice if choice and (choice["model"], choice["reasoning"]) not in used else None
+    kind = "delegation_started" if action == "delegate" else "advisor_started"
+    used = {(e["data"].get("model"), e["data"].get("reasoning")) for e in prior if e.get("kind") == kind}
+    return next((c for c in candidates(settings, models)
+                 if c["model"] != settings["model"] and (c["model"], c["reasoning"]) not in used), None)
 
 
 def advice_id(entry):
@@ -112,7 +120,8 @@ def consult(worker, goal, settings):
         return
     record, interventions, fingerprint = ready
     blocker = record["blocker_key"]
-    choice = selection(settings, record["action"])
+    relevant = [e for e in interventions if e["data"].get("blocker_key") == blocker]
+    choice = selection(settings, record["action"], relevant)
     if not choice:
         preference = hashlib.sha256(json.dumps([settings["model"], settings["reasoning"], settings["diagnostic_models"]]).encode()).hexdigest()[:16]
         worker.state.note(goal["id"], f"advisor-unavailable:{goal['id']}:{blocker}:{preference}", "advisor_unavailable",
@@ -168,7 +177,8 @@ def delegation(worker, goal, settings):
     if not advice or not any(o["advice_id"] == advice_id(advice[-1]) and o["result"] and o["evidence"]
                             for o in record["advice_outcomes"]):
         return None
-    choice = selection(settings, "delegate")
+    relevant = [e for e in interventions if e["data"].get("blocker_key") == record["blocker_key"]]
+    choice = selection(settings, "delegate", relevant)
     if not choice:
         return None
     return {"record": record, "choice": choice, "fingerprint": fingerprint,
