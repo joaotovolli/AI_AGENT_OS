@@ -31,12 +31,15 @@ provider, account or tool restrictions.
    identify the exact missing step. Prepare all possible work before a required WSL restart
    and document how to resume afterwards.
 
-3. Use codex exec --help and an actual run to verify the adapter with gpt-5.6-luna and
-   medium reasoning. This is the required default. Check JSONL output, the result schema
-   and full-access execution. Verify Fast behaviour against current CLI support and the
-   account's available tiers; record an actual limitation if unsupported. Preserve my
-   selected model and existing global configuration. Use the saved Codex sign-in without
-   adding a dependency on an OpenAI API key.
+3. Use codex exec --help and an actual run to verify the adapter with gpt-6-luna and
+   medium reasoning. This is the required default. Confirm that automatic strategic escalation
+   stays inside GPT-6: Luna High first for same-model reasoning, Sol High for stronger bounded
+   assistance, and Astra High only for exceptional cases that pass the existing evidence and
+   cost/value gates. Do not use Terra or GPT-5.6 for automatic escalation. Check JSONL output,
+   the result schema and full-access execution. Verify Fast behaviour against current CLI support
+   and the account's available tiers; record an actual limitation if unsupported. Preserve my
+   selected model and existing global configuration. Use the saved Codex sign-in without adding
+   a dependency on an OpenAI API key.
 
 4. Run the regression suite and fix defects. Execute bash scripts/install-wsl.sh 8765,
    selecting another free port only if necessary. Install Windows shortcuts and keep-alive
@@ -52,7 +55,7 @@ provider, account or tool restrictions.
    file in workspace/smoke-test with a test that checks its content. Observe actual execution,
    independent review, commit, push and dashboard completion. Verify interrupted-goal recovery
    and failure handling with the regression suite. Trigger an early maintenance cycle using
-   Run now and leave the final interval at 3,600 seconds. Finish with Luna Medium and Fast off
+   Run now and leave the final interval at 3,600 seconds. Finish with GPT-6 Luna Medium and Fast off
    unless I explicitly request different settings.
 
 7. Publish code, fixes and instructions to this repository. Every attempt needs a checkpoint
@@ -72,7 +75,7 @@ provider, account or tool restrictions.
 Keep the project reusable as AI_AGENT_OS_1, AI_AGENT_OS_2 and other independent repositories.
 Preserve scripts/new_instance.py and per-instance ports, state and services.
 
-Leave GitHub follow-ups and diagnostic escalation disabled unless I explicitly enable them.
-Verify their controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
+Leave integrated strategic assistance subject to its evidence, cooldown and cost/value gates.
+Verify its controls and persisted settings using fixtures. Read docs/PROJECTS.md for generated
 outputs and docs/FRAMEWORK_UPDATES.md for base provenance and future updates. Do not apply
 base updates to any other existing instance as part of this installation.
